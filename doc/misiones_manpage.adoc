@@ -1,0 +1,121 @@
+// Copyright © 2023 Michael Thompson
+// SPDX-License-Identifier: GPL-2.0-or-later
+
+MISIONES(1)
+===========
+:doctype: manpage
+
+
+NAME
+----
+misiones - generates LeafletJS map data for historic missions and paths
+
+
+SYNOPSIS
+--------
+*misiones* -d _source_directory_ -g _output_file_
+
+*misiones* -d _source_directory_ -m _object_name_ [-u _distance_ [-miles]]
+
+
+DESCRIPTION
+-----------
+*misiones* reads a set of data containing locations and information about historical mission
+sites and roads between them in order to generate a Javascript file used to display a map
+of the missions using the LeafletJS library.
+
+Map features may be marked according to how well attested they are by evidence from the
+historical record and from vestiges that remain to the present day.  Attestation markers
+list a set of user-defined keywords, the combination of which influences the way the
+feature is displayed on the map.  For example, a poorly attested path might show as only
+one pixel wide where a well attested one might be three pixels wide.
+
+Basic map features consist of the typical set available in LeafletJS: points, rectangles,
+polygons, circles, paths, and markers.  Several of these may be placed into aggregate
+features in the manner of GeoJSON features and feature collections.  Most of these can be
+marked with basic style names plus an optional set of attestation indicators.
+
+(Unlike GeoJSON, *misiones* does not distinguish beteen features and feature collections.
+Features may contain other features).
+
+A special feature type is a _route_.  A route is given as a set of one or more paths
+connected by common endpoints.  The various paths within a route may have varying degrees
+of confidence and hence disparate attestation indicators.  To allow source datasets
+to avoid stating full attestation data for every component path, routes are typically
+specified as an ordered set of segments, each of which contains an ordered set of paths.
+Style data is inherited from one level to another, a fact which makes this typical pattern
+useful::
+
+* _route_ states the basic style for the route as a whole
+* _segment_ lists attestation data for the historical record (e.g.
+details described in a primary reference) but not latter-day evidence
+* _path_ lists attestation for the observable feature (e.g. modern road with the historic
+name)
+
+This pattern has another advantage:  if a given path is shared among multiple routes,
+the path's historical use might be well attested for one route but less so for another.
+Since the path has the same latter-day physical manifestation in relation to both routes,
+the path's part of the attestation can stay unchanged.
+
+A secondary function of *misiones* is to compute measurements of routes, segments, and
+paths.  The *-m* command-line switch specifies the name of the item to measure.  Adding
+the *-u* switch to the *-m* switch is for the up-to function:  the program computes the
+coordinates of the point along the indicated segment that is the indicated number of
+meters (or *-miles*) along the route/segment/path.
+
+The source dataset is taken from text files having the _.sexp_ filename extension in the
+indicated directory.  As implied by the filename extension, the files contain Lisp-like
+S-expressions.  This format has a very simple syntax and requires very little
+punctuation as compared to common formats such as XML, JSON, or TOML.
+
+This example describes a feature containing a marker and polygon and linked to a
+clickable popup message.  Note that point coordinates are specified by
+latitude/longitude pairs and that the numbers are separated only by whitespace.
+
+----
+(feature
+    (popup "<b>Demo Feature</b><br/>See it here.")
+    (polygon
+        (style featureStyle)
+        30.37  -84.00    30.37  -83.985
+        30.355 -83.985   30.355 -84.00)
+    (marker
+        30.36 -83.99)
+)
+----
+
+The *info*(1) page contains details about the source files.
+
+
+EXAMPLES
+--------
+
+`misiones -d data/ -g data.js`:: generate _data.js_ file from data in _data/_ directory
+
+`misiones -d data/ -m longroad`:: displays the length of the route/segment/path as both
+meters and miles
+
+`misiones -d data/ -m CentralRR -u 10 -miles`:: displays the latitude/longitude of the
+point along CentralRR nearest to the 10-mile mark
+
+
+EXIT STATUS
+-----------
+[horizontal]
+*0*:: Success
+*1*:: Failure
+
+
+SEE ALSO
+--------
+The intended client for this program: https://github.com/potano/elDestino
+
+*Info*(1) page *misiones*
+
+
+COPYING
+-------
+Copyright © 2023 Michael Thompson
+
+SPDX-License-Identifier: GPL-2.0-or-later
+

@@ -1,0 +1,238 @@
+// Copyright © 2023 Michael Thompson
+// SPDX-License-Identifier: GPL-2.0-or-later
+
+Misiones User Manual
+=====================
+Michael Thompson <32822313+potano@users.noreply.github.com>
+:doctype: book
+:linkcss!:
+:sectnums!:
+:sectnumlevels: 0
+
+[preface]
+== Introduction
+
+Misiones reads a set of data about historical features and roads to generate a Javascript
+data file to populate an interactive map powered by the LeafletJS Javascript library.
+The source data set is taken from multiple files that describe various map features and
+their locations.  Most features may have styling applied to them not only via explicit
+style names but also as modified according to how well attested they are by historical
+and modern references.
+
+Map features include those as provided by the LeafletJS library—points, rectangles,
+polygons, circles, paths, and markers—but also aggregates of items: features, segments,
+and routes.  Most of these may have optional attributes attached to them:  styles,
+attestation indicators, and on-click popups.
+
+All these features are to be contained in one or more _layers_, which are aggregations
+of features which may be selected or deselected for display on the map via a small
+selection box that LeafletJS draws on the map.
+
+== Source files
+Source files consist of S-expressions, a form borrowed from the Lisp programming
+language to represent the basic structural concept of that language, a _list_.
+S-expressions have a very simple syntax that makes it easy to let lists contain other
+lists.  This example of a map feature containing marker and a nearly rectangular
+polygon illustrates several of the basic structural forms:
+
+----
+(feature
+    (marker  30.2532 -83.1235)
+    (polygon
+         30.2533 -83.1236     30.2531 -83.1236
+         30.2533 -83.1234     30.2531 -83.1234
+    )
+)
+----
+
+An S-expression consists of an opening parenthesis followed immediately by a headword
+(here _feature_, _marker_, and _polygon_) and then some contents followed by a
+matching closing parenthesis.  The _feature_ object here contains a marker, and the
+_marker_ contains a latitude/longitude pair.  The _polygon_ contains four
+latitude/longitude pairs.  Whitespace separates the tokens but is optional when the
+lexical rules of the tokens make the separation unambiguous (as between the marker's
+longitude and the closing parenthesis).  As with Lisp, *misiones* uses the bare
+minimum of punctuation in its syntax.
+
+Many of the list types in *misiones* may be marked by an identifier so that they may
+be referred to at other places in the data set.  The main reason for doing this is
+to allow the user to avoid deep nesting of lists in a single source file and to
+spread the data set across multiple source files.  It also allows the sharing of parts
+of the data by multiple layers or routes.
+
+A list name is stated as an identifier that follows a list headword.  This
+example illustrates a path with an identifier:
+
+----
+(path CentralFloridaRailroadFanlew
+    30.272119 -84.052327
+    30.273955 -84.052246
+    30.274067 -84.052225
+    30.274182 -84.052209
+)
+----
+
+Using the identifier _CentralFloridaRailroadFanlew_, another map feature may include
+the path by reference.
+
+Identifiers are optional for lists contained in other lists but are required for lists
+at the top level except for the _levels_ list, the root of the tree.  The program
+detects and forbids cycles in the map data.
+
+
+=== Lexical rules
+
+Lists, as noted above, are indicated by S-expressions which contain some number of
+items.  S-expressions begin with an opening parenthesis followed immediately by a
+headword.  Following the headword come some number of scalar tokens and/or
+S-expressesions ended by a closing parenthesis.  Scalar token types are identified
+by their starting characters and are considered to end at the first character not
+allowed for that type.  This fact allows the lexical analyzer separate tokens in the
+input stream without relying on whitespace to separate them, but for considerations of
+readability users are discouraged from overuse of this mechanism.
+
+Lexical items representing scalar values:
+
+string:: The sequence of characters between two double-quote marks.  The string
+between the quote marks may contain backslash-escape sequences to insert special
+characters or to escape a double-quote mark or a backslash.
+
+integer:: A sequence of one or more digits optionally preceded by a plus or minus sign.
+
+float:: Like an integer, but also contains a decimal point.
+
+identifier:: A sequence beginning with a letter or underscore followed by any number
+of letters, digits, or underscores.  Such an sequence may also contain a dot followed
+by a sequence of characters as described in the first sentence.
+
+hex literal:: A # character followed by 2 or more hexadecimal digits.  The resulting
+value is treated as a string.
+
+base-64 literal:: A | character followed by a sequence of base-64 characters.  The
+resulting value is treated as a string.
+
+comment:: A semicolon character followed by all characters up to the end of the line.
+Is treated like whitespace.
+
+
+=== List Types
+
+There are several types of lists that *misiones* recognizes.  These fall into five
+categories:  collections, geometric features, attributes, configuration, and lists of
+references to collections and geometric features.  Items of the first two categories
+may appear at the outer level in a source file (viz. not contained in some other
+list) whereas the others must appear within other lists.  Only those lists which may
+appear at the outer level may have names, so this documentation describes such lists
+as "namable".  All such list names share the same namespace.
+
+Here are the categories and a summary of the list types which belong to the
+categories:
+
+collections:: Groupings of related items.  These are all namable lists and may appear
+at the outer level of the source documents.
+
+_feature_::: General-purpose grouping of geometric features, routes, and other
+features.  May have any of the _style_, _attribution_, or _popup_ attributes.
+
+_layer_::: Declares a layer, which is a set of map items which can be hidden from or
+displayed on the map by means a selection box that LeafletJS displays on the map.
+
+_route_::: Connects segments and/or paths into a complete route.  Each interior
+constituent path must share an endpoint with the neighboring path at the respective
+end.
+
+_segment_::: Connects paths into a complete segment.  As with routes, the paths
+within a segment must be connected by common endpoints.
+
+geometric features:: Items with locations specified by latitude and longitude.  These
+are all namable lists and may appear at the outer level of source documents.
+
+_circle_::: Draws a circle on the map.  Requires a latitude/longitude pair for the
+center of the circle and a _radius_ or _pixels_ attribute to declare the circle's
+radius.  The _radius_ list sets the radius in meters whereas the _pixels_ list sets
+the radius in pixels.
+
+_marker_::: Marker displayed on the map.  Must include a single
+latitude/longitude point for the base of the marker.  Uses the normal LeafletJS
+marker-icon mechanism unless the _marker_ list contains the _html_ attribute, in
+which case the HTML is used in a LeafletJS _divIcon_.
+
+_path_::: Declares a path, an ordered set of latitude/longitude pairs.  May also
+include up to one each of _style_, _attestation_, and _popup_.  Paths may be joined
+in sequence via _segment_ and/or _route_ lists.
+
+_point_::: Locates a single point on the map.  Requires a latitude/longitude pair.
+Does not allow any attributes to be set.
+
+_polygon_::: Draws a polygon.  Requires a list of latitude/longitude pairs to mark out
+the path that serves as the edges of the polygon.
+
+_rectangle_::: Draws a rectangle on the map.  Requires a latitude/longitude pair
+for two opposite corners of the rectange.
+
+attributes:: Modifiers for the above two list categories
+
+_attestation_::: Contains a list of one or more identifiers which summarize how
+well attested the feature is that contains the attestation list.  Attestations
+for an item modify the item's displayed style in a way configured by
+_attestationType_ configuration elements.  Attestation keywords exist in their
+own namespace.
+
+_html_::: HTML text to display as a marker rather than a marker icon.  May appear
+only in _marker_ lists.  Text must be given as one more more string tokens.
+
+_menuitem_::: Text that describes a layer in Leaflet's selection box.  Must occur
+exactly once in a _layer_ list but prohibited everwhere else.  Text must be given
+as a string token.
+
+_pixels_::: Numeric value states the desired _circle_ radius as a number of pixels.
+
+_popup_::: Text to display in a popup box if the user clicks on the map item
+containing the _popup_ attribute.  Text must be given as one or more string
+tokens.
+
+_radius_::: Numeric value states the desired _circle_ radius as a number of meters.
+
+_style_::: Contains an identifier naming the LeafletJS style to apply to the
+other contents of the containing list.  Style names are declared in _baseStyle_
+configuration elements and exist in a namespace used only for style names.
+
+configuration:: Configuration of styles and attribution indicators
+
+_config_::: List of configuration items.  If specified for the source data set, the
+_config_ list must occur at the outer level of a source file.  It may contain only
+_baseStyle_ and _attestationType_ lists.  If not specified, the source data set
+must not contain any _style_ or _attestation_ lists.
+
+_baseStyle_::: Declares a base style that may be referenced in a _style_ list in the
+main part of the data set.  Contains a list of strings which each set a basic
+LeafletJS style property for the named style.  May appear only within a _config_ list.
+
+_attestationType_::: Declares a category of attestation keywords, the rule for
+interpreting the keywords, and the enumeration of the attribute keywords themselves
+with the related style modifications.  May appear only within a _config_ list.
+
+_attSym_::: Declares an attestation keyword and—depending on the rule for the
+attestation type—either the weight to assign to the keyword or the style modification
+to apply if the keyword is present.  May appear only within an _attestationType_
+list.
+
+_modStyle_::: Declares a set of LeafletJS style properties to override in the base
+style for the item being display.  May appear only within _attestationType_ or _attSym_
+lists.
+
+lists of references:: Lists which hold references to child items to be contained in
+collections
+
+_features_::: Collection of references to _feature_, _route_, and geometric-feature
+lists.
+
+_layers_::: Root container for _layer_ lists; the data files must declare exactly one
+_layers_ list.  The list contains nothing but references to _layer_ objects.
+
+_paths_::: Ordered collection of references to _path_ lists.  May occur only within
+_segment_ lists.
+
+_segments_::: Ordered collection of segments and/or paths.  May occur only with
+_route_ lists.
+

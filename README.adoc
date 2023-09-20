@@ -1,0 +1,35 @@
+// Copyright © 2023 Michael Thompson
+// SPDX-License-Identifier: GPL-2.0-or-later
+
+= Misiones
+Misiones generates LeafletJS map data for historic missions and paths.  It is indended
+as the main build tool for the El Destino dataset (https://github.com/potano/elDestino),
+which generates a map for the El Destino plantation and the Spanish missions that had
+been in the area.  Given its ability to alter the displayed map style of features
+according to their historical attestations, *misiones* should be able to find wider
+use.
+
+The output of *misiones* is a Javascript source file (not strict JSON) to be read into
+a main Javascript application that feeds the generated data into a LeafletJS map.
+
+See the link:doc/[doc/] directory for program usage and source-data format.
+
+Building *misiones* requires only a recent Go compiler (https://go.dev/dl).  The
+process is slightly easier if the _make_ command is available and the target
+architecture and OS are the same as that of the installed Go compiler.
+
+* Using _make_
+
+Run `make` in the main directory and copy the generated program, `bin/misiones` to
+the location where it should be deployed.
+
+Runing `make install` will install the build the program and install it to the
+proper place on a Unix-like system.  Also installs the _man_ and _info_ pages.
+
+* Using the Go compiler
+
+Run `go build bin/misiones.go` in the main directory and copy the generated
+program, `misiones` to the location where it should be deployed.  Set the _GOARCH_
+and _GOOS_ environment variables as needed if cross-compiling for a different
+architecture and/or OS.
+
