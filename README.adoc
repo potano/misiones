@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 = Misiones
+
 Misiones generates LeafletJS map data for historic missions and paths.  It is indended
 as the main build tool for the El Destino dataset (https://github.com/potano/elDestino),
 which generates a map for the El Destino plantation and the Spanish missions that had
