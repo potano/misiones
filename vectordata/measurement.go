@@ -94,7 +94,7 @@ func (vd *VectorData) MeasurePathUpTo(segmentName string, upToDistance float64) 
 			return
 		}
 	}
-	err = fmt.Errorf("%s %s is only %.1f meters (%.2f miles) long",
+	err = fmt.Errorf("%s '%s' is only %.1f meters (%.2f miles) long",
 		typeMapToName[item.ItemType()], item.Name(), distance,
 		distance / great.METERS_PER_MILE)
 	return
@@ -110,7 +110,7 @@ func pathDistanceUpTo(rec pathLocationInfo, upTo float64) (float64, float64, flo
 		pos, posIncrement, index, indexIncrement = 2, 2, 1, 1
 		prevLat, prevLong = location[0], location[1]
 	} else {
-		pos, posIncrement, index, indexIncrement = len(location) - 4, -2, count - 2, -1
+		pos, posIncrement, index, indexIncrement = len(location) - 4, -2, count - 1, -1
 		prevLat, prevLong = location[pos + 2], location[pos + 3]
 	}
 	prevLat *= great.DEG_TO_RADIANS
@@ -162,8 +162,11 @@ func extendContinuousPath(gatheredPaths []pathLocationInfo, path *map_locationTy
 		prevLat, prevLong = prev.farLat, prev.farLong
 		match := path.location.pathEndpointMatch(prevLat, prevLong)
 		if match == noPathMatch {
-			return nil, path.Error("'%s' does not share and endpoint with '%s'",
-				path.Name(), prev.path.Name())
+			gatheredPaths, match = tryFlippingPath0(gatheredPaths, path)
+			if match == noPathMatch {
+				return nil, path.Error("'%s' does not share an endpoint with '%s'",
+					path.Name(), prev.path.Name())
+			}
 		}
 		prevLat, prevLong = path.location.oppositeEndpoint(match)
 		forward = match == pathMatchForward
@@ -174,6 +177,25 @@ func extendContinuousPath(gatheredPaths []pathLocationInfo, path *map_locationTy
 	gatheredPaths = append(gatheredPaths, pathLocationInfo{path, prevLat, prevLong, forward})
 	return gatheredPaths, nil
 }
+
+func tryFlippingPath0(gatheredPaths []pathLocationInfo, path *map_locationType,
+		) ([]pathLocationInfo, int) {
+	if len(gatheredPaths) != 1 {
+		return nil, noPathMatch
+	}
+	rec0 := gatheredPaths[0]
+	match := pathMatchForward
+	if rec0.forward {
+		match = pathMatchReverse
+	}
+	prevLat, prevLong := rec0.path.location.oppositeEndpoint(match)
+	match = path.location.pathEndpointMatch(prevLat, prevLong)
+	if match == noPathMatch {
+		return nil, noPathMatch
+	}
+	return []pathLocationInfo{{rec0.path, prevLat, prevLong, !rec0.forward}}, match
+}
+
 
 func (ms *mapSegmentType) gatherPaths() ([]pathLocationInfo, error) {
 	var gatheredPaths []pathLocationInfo
@@ -194,8 +216,8 @@ func (ms *mapSegmentType) gatherPaths() ([]pathLocationInfo, error) {
 				}
 				gatheredPaths, err = extendContinuousPath(gatheredPaths, path)
 				if err != nil {
-					return nil, path.Error("in segment %s, %s",
-						item.parentName, err)
+					return nil, fmt.Errorf("%s in segment %s", err,
+						item.parentName)
 				}
 			}
 		default:
@@ -241,16 +263,31 @@ func (route *mapRouteType) gatherPaths() ([]pathLocationInfo, error) {
 	}
 	var gatheredPaths []pathLocationInfo
 	var prevLat, prevLong float64
-	for _, group := range paths {
+	for groupX, group := range paths {
 		if len(gatheredPaths) > 0 {
 			path0 := group[0].path
-			summation := locationPairs{path0.location[0], path0.location[1],
-				group[0].farLat, group[0].farLong}
+			pathN := group[len(group)-1].path
+			path0Lat, path0Long := path0.location.oppositeEndpoint(pathMatchReverse)
+			pathNLat, pathNLong := pathN.location.oppositeEndpoint(pathMatchForward)
+			summation := locationPairs{path0Lat, path0Long, pathNLat, pathNLong}
 			match := summation.pathEndpointMatch(prevLat, prevLong)
 			if match == noPathMatch {
-				return nil, path0.Error(
-					"path '%s' does not join with route '%s'",
-					path0.Name(), route.Name())
+				// Try flipping the segment
+				path0Lat, path0Long := path0.location.oppositeEndpoint(
+					pathMatchForward)
+				pathNLat, pathNLong := pathN.location.oppositeEndpoint(
+					pathMatchReverse)
+				summation := locationPairs{path0Lat, path0Long, pathNLat, pathNLong}
+				match = summation.pathEndpointMatch(prevLat, prevLong)
+			}
+			if match == noPathMatch {
+				gatheredPaths, match = tryFlippingGroup0(groupX, gatheredPaths,
+					group)
+				if match == noPathMatch {
+					return nil, path0.Error(
+						"path '%s' does not join with route '%s'",
+						path0.Name(), route.Name())
+				}
 			}
 			if match == pathMatchReverse {
 				reversePathGroup(group)
@@ -261,6 +298,39 @@ func (route *mapRouteType) gatherPaths() ([]pathLocationInfo, error) {
 		prevLat, prevLong = pathN.farLat, pathN.farLong
 	}
 	return gatheredPaths, nil
+}
+
+func tryFlippingGroup0(groupX int, gatheredPaths []pathLocationInfo, group []pathLocationInfo,
+		) ([]pathLocationInfo, int) {
+	if groupX > 1 {
+		return nil, noPathMatch
+	}
+	path0 := group[0].path
+	pathN := group[len(group)-1].path
+	gatheredLocation := gatheredPaths[0].path.location
+	var match int
+	for _, pointX := range []int{0, len(gatheredLocation) - 2} {
+		prevLat, prevLong := gatheredLocation[pointX], gatheredLocation[pointX + 1]
+		path0Lat, path0Long := path0.location.oppositeEndpoint(pathMatchReverse)
+		pathNLat, pathNLong := pathN.location.oppositeEndpoint(pathMatchForward)
+		summation := locationPairs{path0Lat, path0Long, pathNLat, pathNLong}
+		match = summation.pathEndpointMatch(prevLat, prevLong)
+		if match != noPathMatch {
+			break
+		}
+		path0Lat, path0Long = path0.location.oppositeEndpoint(pathMatchForward)
+		pathNLat, pathNLong = pathN.location.oppositeEndpoint(pathMatchReverse)
+		summation = locationPairs{path0Lat, path0Long, pathNLat, pathNLong}
+		match = summation.pathEndpointMatch(prevLat, prevLong)
+		if match != noPathMatch {
+			break
+		}
+	}
+	if match == noPathMatch {
+		return nil, noPathMatch
+	}
+	reversePathGroup(gatheredPaths)
+	return gatheredPaths, match
 }
 
 
