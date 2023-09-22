@@ -15,7 +15,10 @@ func (vd *VectorData) GenerateJs() (string, error) {
 			return "", err
 		}
 	}
-	blobs := []string{vd.styler.generateJs()}
+	var blobs []string
+	if vd.styler != nil {
+		blobs = append(blobs, vd.styler.generateJs())
+	}
 	for _, name := range vd.inDependencyOrder {
 		obj := vd.mapItems[name]
 		if len(obj.Referrers()) > 1 {
@@ -23,7 +26,7 @@ func (vd *VectorData) GenerateJs() (string, error) {
 		}
 	}
 	blobs = append(blobs, "allVectors=" + vd.layersRoot.generateJs())
-	return strings.Join(blobs, "\n"), nil
+	return "(function() {" + strings.Join(blobs, "\n") + "})();", nil
 }
 
 
@@ -188,7 +191,7 @@ func attestationOrStyle(attestation *mapAttestationType, style *mapStyleType) no
 	} else if style != nil {
 		resolvedStyleIndex = style.resolvedStyleIndex
 	}
-	if resolvedStyleIndex >= 0 {
+	if resolvedStyleIndex > 0 {
 		text = formStyleName(resolvedStyleIndex)
 	}
 	return nonEmptyCode(text)

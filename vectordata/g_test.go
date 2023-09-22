@@ -36,7 +36,7 @@ func Test_generateBasic(T *testing.T) {
 		30.351541 -83.517636
 	)
 	(path path2
-		(attestation modern_name)
+		(attestation modern_name maybe)
 		30.351541 -83.517636
 		30.351709 -83.519064
 		30.351815 -83.519952
@@ -79,8 +79,8 @@ func Test_generateBasic(T *testing.T) {
 	if err != nil {
 		T.Fatal(err.Error())
 	}
-	want := `var $s1={"opacity":0.8,"width":2}
-allVectors=[{"menuitem":"Look","features":[{"t":"feature","popup":"Trail along","features":[{"t":"path","coords":[29.500000,-83.430000,29.500000,-83.410000,29.400000,-83.430000,29.400000,-83.410000]}]},{"t":"route","features":[{"t":"segment","paths":[{"t":"path","coords":[30.350075,-83.507595,30.350177,-83.507918,30.351014,-83.513659,30.351541,-83.517636]},{"t":"path","style":$s1,"coords":[30.351541,-83.517636,30.351709,-83.519064,30.351815,-83.519952,30.351830,-83.520140,30.351842,-83.520299]}]}]}]}]`
+	want := `(function() {var $s1={"opacity":0.4}
+allVectors=[{"menuitem":"Look","features":[{"t":"feature","popup":"Trail along","features":[{"t":"path","coords":[29.500000,-83.430000,29.500000,-83.410000,29.400000,-83.430000,29.400000,-83.410000]}]},{"t":"route","features":[{"t":"segment","paths":[{"t":"path","coords":[30.350075,-83.507595,30.350177,-83.507918,30.351014,-83.513659,30.351541,-83.517636]},{"t":"path","style":$s1,"coords":[30.351541,-83.517636,30.351709,-83.519064,30.351815,-83.519952,30.351830,-83.520140,30.351842,-83.520299]}]}]}]}]})();`
 	if generated != want {
 		T.Fatalf("Failed to generate\n%s\ngot\n%s", want, generated)
 	}

@@ -19,6 +19,7 @@ type styler struct {
 	attestationStyles [][]cssPropertyMap
 	referencedStyles []cssPropertyMap
 	referencedStyleMap map[string]int
+	referencedStyleMapByContent map[string]int
 }
 
 
@@ -30,6 +31,7 @@ func newStyler(doc *VectorData) *styler {
 		attestationStyles: [][]cssPropertyMap{},
 		referencedStyles: []cssPropertyMap{nil},
 		referencedStyleMap: map[string]int{},
+		referencedStyleMapByContent: map[string]int{},
 	}
 }
 
@@ -74,8 +76,7 @@ func (sty *styler) resolveStyle(style *mapStyleType) error {
 	key := string([]byte{byte(styX)})
 	rsX, exists := sty.referencedStyleMap[key]
 	if !exists {
-		rsX = len(sty.referencedStyles)
-		sty.referencedStyles = append(sty.referencedStyles, sty.baseStyles[styX])
+		rsX = sty.registerReferencedStyleContents(sty.baseStyles[styX])
 		sty.referencedStyleMap[key] = rsX
 	}
 	style.resolvedStyleIndex = rsX
@@ -98,14 +99,36 @@ func (sty *styler) findAttestationStyle(styX int, atypeVector []int) int {
 			}
 		}
 		for groupID, step := range atypeVector {
-			for k, v := range sty.attestationStyles[groupID][step] {
-				props[k] = v
+			if step > 0 {
+				step--
+				for k, v := range sty.attestationStyles[groupID][step] {
+					props[k] = v
+				}
 			}
 		}
-		rsX = len(sty.referencedStyles)
-		sty.referencedStyles = append(sty.referencedStyles, props)
+		rsX = sty.registerReferencedStyleContents(props)
 		sty.referencedStyleMap[key] = rsX
 	}
+	return rsX
+}
+
+func (sty *styler) registerReferencedStyleContents(properties cssPropertyMap) int {
+	if len(properties) == 0 {
+		return 0
+	}
+	parts := make([]string, 0, len(properties))
+	for k, v := range properties {
+		parts = append(parts, k + ":" + v.jsonForm())
+	}
+	sort.Strings(parts)
+	styleContentKey := strings.Join(parts, "")
+	rsX, exists := sty.referencedStyleMapByContent[styleContentKey]
+	if exists {
+		return rsX
+	}
+	rsX = len(sty.referencedStyles)
+	sty.referencedStyles = append(sty.referencedStyles, properties)
+	sty.referencedStyleMapByContent[styleContentKey] = rsX
 	return rsX
 }
 

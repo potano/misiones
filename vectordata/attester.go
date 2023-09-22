@@ -67,15 +67,18 @@ func (att *attester) resolveStyle(attestation *mapAttestationType, style *mapSty
 						"multiple %s attestations; cannot use %s with %s",
 						groupInfo.name, name, oneTimeUsers[groupNum])
 				}
-				groupUse[groupNum] = attDef.weight
-				oneTimeUsers[groupNum] = name
+				// offset index by 1 so style index=0 indicates 'no added properties'
+				groupUse[groupNum] = attDef.weight + 1
 			}
+			oneTimeUsers[groupNum] = name
 		}
 	}
 	for groupNum, groupInfo := range att.groups {
 		if groupInfo.groupType == weightedAttestationGroup {
-			groupMills := groupUse[groupNum] * 1000
-			groupUse[groupNum] = groupMills / groupInfo.millsPerStep
+			if len(oneTimeUsers[groupNum]) > 0 {
+				groupMills := groupUse[groupNum] * 1000
+				groupUse[groupNum] = (groupMills / groupInfo.millsPerStep) + 1
+			}
 		}
 	}
 	attestation.resolvedStyleIndex = att.doc.styler.findAttestationStyle(styleX, groupUse)

@@ -19,6 +19,7 @@ type namedStylerCheck struct {
 
 func checkStylerConfig(T *testing.T, sty *styler, base []namedStylerCheck, attStyles [][][][]string,
 		referenced []namedStylerCheck) {
+	T.Helper()
 	checkNamedStylerMap(T, sty.baseStyles, sty.baseStyleMap, base, "base styles")
 	if len(sty.attestationStyles) != len(attStyles) {
 		T.Fatalf("have %d weighted attestation groups, have %d",
@@ -34,12 +35,13 @@ func checkStylerConfig(T *testing.T, sty *styler, base []namedStylerCheck, attSt
 				fmt.Sprintf("step %d of attestation group %d", stepNum, groupID))
 		}
 	}
-	checkNamedStylerMap(T, sty.referencedStyles, sty.referencedStyleMap, referenced,
+	checkNamedStylerMap(T, sty.referencedStyles, sty.referencedStyleMapByContent, referenced,
 		"referenced styles")
 }
 
 func checkNamedStylerMap(T *testing.T, haveVec []cssPropertyMap, haveMap map[string]int,
 		want []namedStylerCheck, desc string) {
+	T.Helper()
 	if len(haveMap) != len(want) {
 		T.Fatalf("have %d %s map items, want %d", len(haveMap), desc, len(want))
 	}
@@ -507,34 +509,29 @@ func Test_routeSegmentPathsConfigStyled(T *testing.T) {
 			},
 		},
 		[]namedStylerCheck{
-			{string([]byte{1}), [][]string{
+			{"color:\"#1f78b4\"fill:truefillColor:\"#1f78b4\"fillOpacity:0.1opacity:0.9",
+				[][]string{
 				[]string{"color", "#1f78b4"},
 				[]string{"opacity", "0.9"},
 				[]string{"fill", "true"},
 				[]string{"fillColor", "#1f78b4"},
 				[]string{"fillOpacity", "0.1"},
 			}},
-			{string([]byte{2}), [][]string{
+			{"color:\"#AA3333\"opacity:0.6width:5", [][]string{
 				[]string{"color", "#AA3333"},
 				[]string{"opacity", "0.6"},
 				[]string{"width", "5"},
 			}},
-			{string([]byte{0, 1, 0, 0}), [][]string{
+			{"opacity:0.8width:3", [][]string{
 				[]string{"opacity", "0.8"},
 				[]string{"width", "3"},
 			}},
-			{string([]byte{0, 1, 0, 1}), [][]string{
+			{"opacity:0.4width:3", [][]string{
 				[]string{"opacity", "0.4"},
 				[]string{"width", "3"},
 			}},
-			{string([]byte{0, 0, 1, 0}), [][]string{
+			{"dashArray:\"4 4\"", [][]string{
 				[]string{"dashArray", "4 4"},
-				[]string{"opacity", "0.8"},
-				[]string{"width", "2"},
-			}},
-			{string([]byte{0, 0, 0, 0}), [][]string{
-				[]string{"opacity", "0.8"},
-				[]string{"width", "2"},
 			}},
 		})
 
