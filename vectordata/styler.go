@@ -5,6 +5,7 @@ package vectordata
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"potano.misiones/sexp"
@@ -118,7 +119,8 @@ func (sty *styler) generateJs() string {
 		for k, v := range props {
 			parts = append(parts, "\"" + k + "\":" + v.jsonForm())
 		}
-		blobs[i] = formStyleName(i) + "={" + strings.Join(parts, ",") + "}"
+		sort.Strings(parts)
+		blobs[i] = formStyleName(i+1) + "={" + strings.Join(parts, ",") + "}"
 	}
 	return "var " + strings.Join(blobs, ",")
 }
