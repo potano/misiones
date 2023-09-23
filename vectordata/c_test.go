@@ -17,8 +17,13 @@ type namedStylerCheck struct {
 	properties [][]string
 }
 
+type referencedStyleMapCheck struct {
+	key []byte
+	contentKey string
+}
+
 func checkStylerConfig(T *testing.T, sty *styler, base []namedStylerCheck, attStyles [][][][]string,
-		referenced []namedStylerCheck) {
+		referenced []namedStylerCheck, mapcheck []referencedStyleMapCheck) {
 	T.Helper()
 	checkNamedStylerMap(T, sty.baseStyles, sty.baseStyleMap, base, "base styles")
 	if len(sty.attestationStyles) != len(attStyles) {
@@ -37,6 +42,25 @@ func checkStylerConfig(T *testing.T, sty *styler, base []namedStylerCheck, attSt
 	}
 	checkNamedStylerMap(T, sty.referencedStyles, sty.referencedStyleMapByContent, referenced,
 		"referenced styles")
+	if len(sty.referencedStyleMap) != len(mapcheck) {
+		T.Fatalf("have %d referenceStyleMap entries, want %d", len(sty.referencedStyleMap),
+			len(mapcheck))
+	}
+	for _, rec := range mapcheck {
+		index, exists := sty.referencedStyleMap[string(rec.key)]
+		if !exists {
+			T.Fatalf("reference key %v does not exist", rec.key)
+		}
+		byContentIndex, exists := sty.referencedStyleMapByContent[rec.contentKey]
+		if !exists && len(rec.contentKey) > 0 {
+			T.Fatalf("reference key %v: no map entry for content key %s", rec.key,
+				rec.contentKey)
+		}
+		if index != byContentIndex {
+			T.Fatalf("reference key %v: expected index %d, got %d", rec.key,
+				byContentIndex, index)
+		}
+	}
 }
 
 func checkNamedStylerMap(T *testing.T, haveVec []cssPropertyMap, haveMap map[string]int,
@@ -316,7 +340,7 @@ func Test_routeSegmentPathsConfig(T *testing.T) {
 				},
 			},
 		},
-		nil)
+		nil, nil)
 	checkAttesterConfig(T, vd.attester,
 		[]attestationGroup{
 			{ "plusgood", weightedAttestationGroup, 0, 3, 1501 },
@@ -533,6 +557,235 @@ func Test_routeSegmentPathsConfigStyled(T *testing.T) {
 			{"dashArray:\"4 4\"", [][]string{
 				[]string{"dashArray", "4 4"},
 			}},
+		},
+		[]referencedStyleMapCheck {
+			{[]byte{1}, "color:\"#1f78b4\"fill:truefillColor:\"#1f78b4\"fillOpacity:0.1opacity:0.9"},
+			{[]byte{2}, "color:\"#AA3333\"opacity:0.6width:5"},
+			{[]byte{0, 0, 1, 0}, ""},
+			{[]byte{0, 0, 2, 0}, "dashArray:\"4 4\""},
+			{[]byte{0, 2, 0, 1}, "opacity:0.8width:3"},
+			{[]byte{0, 2, 0, 2}, "opacity:0.4width:3"},
+		})
+
+	checkAttesterConfig(T, vd.attester,
+		[]attestationGroup{
+			{ "plusgood", weightedAttestationGroup, 0, 3, 1501 },
+			{ "manifestation", singleValuedAttestationGroup, 1, 0, 0 },
+			{ "confidence", singleValuedAttestationGroup, 2, 0, 0 },
+		},
+		[]allowedAttestationCheck{
+			{ "book", 0, 2 },
+			{ "magazine", 0, 1 },
+			{ "modern_name", 1, 0 },
+			{ "modern_path", 1, 1 },
+			{ "forSure", 2, 0 },
+			{ "maybe", 2, 1 },
+		},
+	)
+}
+
+
+func Test_routeSegmentPathsConfigStyledAttestationModifiesStyle(T *testing.T) {
+	sourceText := `(layers
+		(layer one
+			(menuitem "Look")
+			(features hill theRoad)
+		)
+	)
+	(feature hill
+		(popup "Trail along")
+		(style baseStyle)
+		(path likely
+		      29.50 -83.43  29.50 -83.41
+		      29.40 -83.43  29.40 -83.41)
+	)
+	(route theRoad
+		(segment
+			(style roadStyle)
+			(attestation book maybe)
+			(paths path1 path2)
+		)
+		(segment
+			(attestation book magazine forSure)
+			(paths path3)
+		)
+	)
+	(path path1
+		(attestation modern_path)
+		30.350075 -83.507595
+		30.350177 -83.507918
+		30.351014 -83.513659
+		30.351541 -83.517636
+	)
+	(path path2
+		(attestation modern_name)
+		30.351541 -83.517636
+		30.351709 -83.519064
+		30.351815 -83.519952
+		30.351830 -83.520140
+		30.351842 -83.520299
+	)
+	(path path3
+		(attestation modern_path)
+		30.351842 -83.520299
+		30.351850 -83.520426
+		30.351861 -83.520554
+		30.351870 -83.520668
+		30.351879 -83.520762
+	)
+	(config
+		(baseStyle baseStyle
+			"color=#1f78b4"
+                        "opacity=0.9"
+                        "fill=true"
+                        "fillColor=#1f78b4"
+                        "fillOpacity=0.1"
+		)
+		(baseStyle roadStyle
+		        "color=#AA3333"
+                        "opacity=0.6"
+                        "width=5"
+		)
+		(attestationType plusgood weighted
+			(attSym book  "weight=2")
+			(attSym magazine "weight=1")
+			(modStyle "opacity=0.8" "width=3")
+			(modStyle "opacity=0.8" "width=2")
+		)
+		(attestationType manifestation limit1
+			(attSym modern_name)
+			(attSym modern_path (modStyle "dashArray=4 4"))
+		)
+		(attestationType confidence limit1
+			(attSym forSure)
+			(attSym maybe (modStyle "opacity=0.4"))
+		)
+	)
+	`
+	vd := prepareAndParse(T, []io.Reader{strings.NewReader(sourceText)})
+
+	checkParse(T, vd,
+`→layers '$0' @ infile0:1
+  →layer 'one' @ infile0:2
+      menuitem: 'Look'
+    →features '' @ infile0:4
+        parent: one
+        target names: hill theRoad
+      →feature 'hill' @ infile0:7
+          popup text: 'Trail along'
+          style: baseStyle
+        →path 'likely' @ infile0:10
+            location: 29.500000  -83.430000
+                      29.500000  -83.410000
+                      29.400000  -83.430000
+                      29.400000  -83.410000
+      →route 'theRoad' @ infile0:14
+        →segment '$5' @ infile0:15
+            style: roadStyle
+            attestation: book maybe
+          →paths '' @ infile0:18
+              parent: $5
+              target names: path1 path2
+            →path 'path1' @ infile0:25
+                attestation: modern_path
+                location: 30.350075  -83.507595
+                          30.350177  -83.507918
+                          30.351014  -83.513659
+                          30.351541  -83.517636
+            →path 'path2' @ infile0:32
+                attestation: modern_name
+                location: 30.351541  -83.517636
+                          30.351709  -83.519064
+                          30.351815  -83.519952
+                          30.351830  -83.520140
+                          30.351842  -83.520299
+        →segment '$6' @ infile0:20
+            attestation: book magazine forSure
+          →paths '' @ infile0:22
+              parent: $6
+              target names: path3
+            →path 'path3' @ infile0:40
+                attestation: modern_path
+                location: 30.351842  -83.520299
+                          30.351850  -83.520426
+                          30.351861  -83.520554
+                          30.351870  -83.520668
+                          30.351879  -83.520762`)
+
+	err := vd.CheckInStylesAndAttestations()
+	if err != nil {
+		T.Fatal(err.Error())
+	}
+
+	checkStylerConfig(T, vd.styler,
+		[]namedStylerCheck{
+			{"baseStyle", [][]string{
+				[]string{"color", "#1f78b4"},
+				[]string{"opacity", "0.9"},
+				[]string{"fill", "true"},
+				[]string{"fillColor", "#1f78b4"},
+				[]string{"fillOpacity", "0.1"},
+			}},
+			{"roadStyle", [][]string{
+				[]string{"color", "#AA3333"},
+				[]string{"opacity", "0.6"},
+				[]string{"width", "5"},
+			}},
+		},
+		[][][][]string{
+			[][][]string{
+				[][]string{
+					[]string{"opacity", "0.8"},
+					[]string{"width", "2"},
+				},
+				[][]string{
+					[]string{"opacity", "0.8"},
+					[]string{"width", "3"},
+				},
+			},
+			[][][]string{
+				[][]string{
+				},
+				[][]string{
+					[]string{"dashArray", "4 4"},
+				},
+			},
+			[][][]string{
+				[][]string{
+				},
+				[][]string{
+					[]string{"opacity", "0.4"},
+				},
+			},
+		},
+		[]namedStylerCheck{
+			{"color:\"#1f78b4\"fill:truefillColor:\"#1f78b4\"fillOpacity:0.1opacity:0.9",
+				[][]string{
+				[]string{"color", "#1f78b4"},
+				[]string{"opacity", "0.9"},
+				[]string{"fill", "true"},
+				[]string{"fillColor", "#1f78b4"},
+				[]string{"fillOpacity", "0.1"},
+			}},
+			{"color:\"#AA3333\"opacity:0.4width:3", [][]string{
+				[]string{"color", "#AA3333"},
+				[]string{"opacity", "0.4"},
+				[]string{"width", "3"},
+			}},
+			{"opacity:0.8width:3", [][]string{
+				[]string{"opacity", "0.8"},
+				[]string{"width", "3"},
+			}},
+			{"dashArray:\"4 4\"", [][]string{
+				[]string{"dashArray", "4 4"},
+			}},
+		},
+		[]referencedStyleMapCheck {
+			{[]byte{1}, "color:\"#1f78b4\"fill:truefillColor:\"#1f78b4\"fillOpacity:0.1opacity:0.9"},
+			{[]byte{2, 2, 0, 2}, "color:\"#AA3333\"opacity:0.4width:3"},
+			{[]byte{0, 2, 0, 1}, "opacity:0.8width:3"},
+			{[]byte{0, 0, 1, 0}, ""},
+			{[]byte{0, 0, 2, 0}, "dashArray:\"4 4\""},
 		})
 
 	checkAttesterConfig(T, vd.attester,
