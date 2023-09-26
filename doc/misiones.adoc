@@ -132,20 +132,24 @@ collections:: Groupings of related items.  These are all namable lists and may a
 at the outer level of the source documents.
 
 _feature_::: General-purpose grouping of geometric features, routes, and other
-features.  May have any of the _style_, _attribution_, or _popup_ attributes.
+features.  May have any of the _style_, _attestation_, or _popup_ attributes.
 
 _layer_::: Declares a layer, which is a set of map items which can be hidden from or
 displayed on the map by means a selection box that LeafletJS displays on the map.
+Must contain a _menuitem_ attribute and a _features_ list.
 
-_route_::: Connects segments and/or paths into a complete route.  Each interior
-constituent path must share an endpoint with the neighboring path at the respective
-end.
+_route_::: Connects segments and/or paths into a complete route.  Contains an ordered
+set of _segment_, _path_, and/or _segments_ components, each constituent path of which
+must share an endpoint with the neighboring path at the respective end.  May contain
+_style_, _attestation_, or _popup_ attributes.
 
 _segment_::: Connects paths into a complete segment.  As with routes, the paths
-within a segment must be connected by common endpoints.
+within a segment must be connected by common endpoints.  May contain _style_,
+_attestation_, or _popup_ attributes.
 
 geometric features:: Items with locations specified by latitude and longitude.  These
-are all namable lists and may appear at the outer level of source documents.
+are all namable lists and may appear at the outer level of source documents.  All
+except _point_ may contain _style_, _attestation_, or _popup_ attributes.
 
 _circle_::: Draws a circle on the map.  Requires a latitude/longitude pair for the
 center of the circle and a _radius_ or _pixels_ attribute to declare the circle's
@@ -157,9 +161,8 @@ latitude/longitude point for the base of the marker.  Uses the normal LeafletJS
 marker-icon mechanism unless the _marker_ list contains the _html_ attribute, in
 which case the HTML is used in a LeafletJS _divIcon_.
 
-_path_::: Declares a path, an ordered set of latitude/longitude pairs.  May also
-include up to one each of _style_, _attestation_, and _popup_.  Paths may be joined
-in sequence via _segment_ and/or _route_ lists.
+_path_::: Declares a path:  an ordered set of latitude/longitude pairs.  Paths may be
+joined in sequence via _segment_ and/or _route_ lists.
 
 _point_::: Locates a single point on the map.  Requires a latitude/longitude pair.
 Does not allow any attributes to be set.
@@ -182,7 +185,7 @@ _html_::: HTML text to display as a marker rather than a marker icon.  May appea
 only in _marker_ lists.  Text must be given as one more more string tokens.
 
 _menuitem_::: Text that describes a layer in Leaflet's selection box.  Must occur
-exactly once in a _layer_ list but prohibited everwhere else.  Text must be given
+exactly once in a _layer_ list but is prohibited everwhere else.  Text must be given
 as a string token.
 
 _pixels_::: Numeric value states the desired _circle_ radius as a number of pixels.
@@ -197,7 +200,7 @@ _style_::: Contains an identifier naming the LeafletJS style to apply to the
 other contents of the containing list.  Style names are declared in _baseStyle_
 configuration elements and exist in a namespace used only for style names.
 
-configuration:: Configuration of styles and attribution indicators
+configuration:: Configuration of styles and attestation indicators
 
 _config_::: List of configuration items.  If specified for the source data set, the
 _config_ list must occur at the outer level of a source file.  It may contain only
@@ -236,3 +239,35 @@ _segment_ lists.
 _segments_::: Ordered collection of segments and/or paths.  May occur only with
 _route_ lists.
 
+
+== Dataset organization
+
+The data in a _misiones_ data set is arranged as a tree, specifically as a _directed
+acyclic graph_ (_DAG_).  At the root of the tree is a list of _layer_ lists, each of
+which contains one or more features to draw onto the map.  A layer represents a group
+of map features which may be hidden or redisplayed by use of a selector displayed on
+the map page.  This is an example of the root of a dataset:
+
+----
+(layers
+    (layer towns
+        (menuitem "Towns")
+        (feature Metropolis Smallville Middleburg)
+    )
+    (layer roads
+        (menuitem "Roads connecting towns")
+        (feature route1 riverRoad)
+    )
+)
+----
+
+Note that the features included in each layer are defined elsewhere in the dataset.
+The dataset as a whole may be split among multiple source files.  It is likely
+advantageous to place major features in their own source files and indeed to place
+the dataset root (the _layers_ list) into a source file by itself.
+
+=== Features
+
+The generic feature type is called _feature_.  It may contain elementary features
+such as paths and polygons or it may, without restriction, contain collections of
+features: _route_, _segment_, and indeed, other _feature_ lists.
