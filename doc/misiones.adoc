@@ -123,13 +123,13 @@ references to collections and geometric features.  Items of the first two catego
 may appear at the outer level in a source file (viz. not contained in some other
 list) whereas the others must appear within other lists.  Only those lists which may
 appear at the outer level may have names, so this documentation describes such lists
-as "namable".  All such list names share the same namespace.
+as "nameable".  All such list names share the same namespace.
 
 Here are the categories and a summary of the list types which belong to the
 categories:
 
-collections:: Groupings of related items.  These are all namable lists and may appear
-at the outer level of the source documents.
+collections:: Groupings of related items.  These are all nameable lists and may
+appear at the outer level of the source documents.
 
 _feature_::: General-purpose grouping of geometric features, routes, and other
 features.  May have any of the _style_, _attestation_, or _popup_ attributes.
@@ -148,7 +148,7 @@ within a segment must be connected by common endpoints.  May contain _style_,
 _attestation_, or _popup_ attributes.
 
 geometric features:: Items with locations specified by latitude and longitude.  These
-are all namable lists and may appear at the outer level of source documents.  All
+are all nameable lists and may appear at the outer level of source documents.  All
 except _point_ may contain _style_, _attestation_, or _popup_ attributes.
 
 _circle_::: Draws a circle on the map.  Requires a latitude/longitude pair for the
@@ -230,9 +230,6 @@ collections
 _features_::: Collection of references to _feature_, _route_, and geometric-feature
 lists.
 
-_layers_::: Root container for _layer_ lists; the data files must declare exactly one
-_layers_ list.  The list contains nothing but references to _layer_ objects.
-
 _paths_::: Ordered collection of references to _path_ lists.  May occur only within
 _segment_ lists.
 
@@ -266,8 +263,200 @@ The dataset as a whole may be split among multiple source files.  It is likely
 advantageous to place major features in their own source files and indeed to place
 the dataset root (the _layers_ list) into a source file by itself.
 
+Note regarding nameable objects:  all such objects have names; if the source text
+leaves such an object unnamed, _misiones_ assigns it an internal name consisting of
+a dollar sign followed by digits.  Since identfiers in the source files must begin
+with a letter or underscore, the sources may not have explicit references to these
+internal names.  These names may appear in error messages.
+
+[[Features]]
 === Features
 
-The generic feature type is called _feature_.  It may contain elementary features
-such as paths and polygons or it may, without restriction, contain collections of
-features: _route_, _segment_, and indeed, other _feature_ lists.
+The primary meaning of the word "feature" in relation to maps is a place with a
+distinguised characteristic: it is a "point of interest."  Such a place is never a
+single point; it has an extent in space.  Oftentimes such a "point of interest" is
+composed of multiple smaller points of interest.  This gives rise to the generality
+that a feature is a collection of other features, all of which must ultimately refer
+to some physical place in order to be presented on the map.
+
+In _misiones_ a _feature_ list expresses such an abstraction.  The list may contain
+elementary spatial features such as markers, paths and, polygons or it may, without
+restriction, contain collections of features: _route_, _segment_, and indeed, other
+_feature_ objects.
+Child features may also be included by reference using a _features_ list.
+
+----
+(feature MacArthurPark
+    (style parkStyle)
+
+    (popup "Mac Arthur Park")
+    (polygon
+         (style perimeter)
+         34.06080 -118.27827  34.05945 -118.27475
+         34.05817 -118.28016  34.05657 -118.27668
+    )
+
+    (marker
+        (popup "The cake in the rain")
+        34.05799 -118.27647
+    )
+
+    (features mpJoggingTrail)
+)
+----
+
+A useful capability of _feature_ objects is that child objects inherit any style
+and/or attestation applied to the feature object as a whole.  This styling is
+applied dynamically when the Javascript application inserts the feature into the
+displayed map.  In the above example, the _mpJoggingTrail_ item (whatever its type)
+will be drawn as part of the current feature with the prevailing style, _parkStyle_.
+If some other feature also uses _mpJoggingTrail_, that instance will expand to that
+local style without any reference to its expansion as part of _MacArthurPark_.
+
+The ordering of items within a _feature_ list is insignificant.  Any _style_ or
+_attestation_ that is a direct child of _feature_ is applied to the all the elements
+of that feature.
+
+[[Segments]]
+=== Segments
+
+The _segment_ is a collection type restricted to containing paths and references to
+paths.  A _path_ is an ordered set of points and a _segment_ is an ordered set of
+paths.  The length of a _path_ can be measured, as can the length of a _segment_.  To
+make such measurements possible, two rules apply:
+
+. The paths in a segment must be listed in order of travel from one end of the segment
+to the other.
+
+. Each path within a segment must share an endpoint with the adjacent path(s) in the
+list of paths for the segment.
+
+The choice of the direction of travel is unimportant both for the segment as a whole
+and for the traversal of points within an individual path.
+
+In the following example, note that _secondPath_ continues from the point where
+_firstPath_ left off--thus the paths share an endpoint and, in this case, the
+points are in the same direction of travel (i.e. east to west).
+
+----
+(segment hereIsPart
+    (path firstPath
+        30.125 -83.143
+        30.132 -83.167
+        30.139 -83.162
+    )
+    (path secondPath
+        30.139 -83.162
+        30.147 -83.153
+        30.155 -83.150
+    )
+)
+----
+
+The above segment would remain valid if the points of either or both of the paths
+were written in the reverse of the order shown.  The controlling factor is that they
+share the endpoint [30.139 -83.162].  The two unmatched exterior endpoints are taken
+to be the endpoints of the segment as a whole.  The segment would likewise remains
+valid if its two paths were listed in the opposite order.
+
+The only time where the lexical ordering of paths (viz. the order of paths as
+specified in the source file) comes into play is when using the `--upto` option of
+the `-m` (measurement) function.  This calculates which point along a route, segment,
+or path is at a given distance from the starting point.
+
+Segments may also contain references to paths defined elsewhere in the data set.
+The above example could be rewritten as
+
+----
+(segment hereIsPart
+    (path firstPath
+        30.125 -83.143
+        30.132 -83.167
+        30.139 -83.162
+    )
+    (paths secondPath)
+)
+
+(path secondPath
+    30.139 -83.162
+    30.147 -83.153
+    30.155 -83.150
+)
+----
+
+A _segment_ may contain zero or one of each of _popup_, _style_, and _attestation_.
+As with other container types, these attributes apply to all the path elements
+contained in or referenced by the segment.  Individual paths may also be marked with
+these attributes, a fact which may be used to simplify the design of a dataset.
+
+It is possible for the dataset to contain a path referenced by more than segment.
+It is quite likely in such a case that the two referring segments differ in style and
+attestation patterns.  A strategy to avoid the wasteful duplication of the path
+definition is to assign to paths only those attestations which pertain to how the
+path appears in the modern terrain while the styles reflect only the historical
+attestations.
+
+The ElDestino dataset uses this pattern.  It defines a set of weighted attestation
+markers related to historical references (e.g. "scholarly" and "old_map") and
+markers related to how well attested the feature is in the modern terrain (e.g.
+"modern_name" and "guess").  Since paths are drawn in the modern environment, the
+latter attestation markers apply to them.  Segments carry the historal-attestation
+markers.
+
+----
+(segment crosspointWay
+    (attestation old_map scholarly)
+    (paths missionRoad_CR1568 patalePath)
+)
+
+(path missionRoad_CR1568
+    (attestation modernName)
+    30.46343 -84.15002
+    30.46717 -84.14993
+)
+
+(path patalePath
+    (attestation guess)
+    30.46717 -84.14993
+    30.46736 -84.15019
+)
+----
+
+[[Routes]]
+=== Routes
+
+A route is an ordered collection of segments and/or paths.  As with segments, the
+components of a _route_ must be listed in order of travel of the components and
+each of these components must be linked by common endpoints.  Also in common with
+segments and paths, the choice of starting and ending points when listing a route's
+components makes no difference except for users measuring partial distances along a
+route.
+
+The separate _route_ type makes it possible to apply styling to the route as a whole
+without repeating the styling for each segment.  This also allows for the sharing of
+segments across separate routes.
+
+=== Geometric features
+
+The set of geometric features in _misiones_ all correspond to the similarly named
+object types in LeafletJS.  As is true of other nameable objects in _misiones_,
+geometric features (with the exception of _point_) may have _popup_, _style_, and
+_attestation_ attributes.
+
+All geometric features declare at least one latitude/longitude pair, which is a pair
+of floating-point values in units of degrees.  Operations in _misiones_ which compare
+points for equality measure the difference in each axis within 5×10^-7^ degrees.
+This gives an error about about half a meter of latitude and 3/4 of a meter in
+longitude at 30° latitude.
+
+[options="header",cols="<,^,<"]
+|====
+|Type | Number of pairs | Usage
+|_point_     | 1   | coordinates of point
+|_marker_    | 1   | coordinates of base of marker
+|_circle_    | 1   | center of circle
+|_rectangle_ | 4   | corners of the rectangle
+|_polygon_   | > 1 | nodes along the perimeter of the polygon
+|_path_      | > 1 | nodes along the path
+|====
+
