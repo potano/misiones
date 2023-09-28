@@ -210,9 +210,10 @@ func (ms *mapSegmentType) gatherPaths() ([]pathLocationInfo, error) {
 		case *map_referenceAggregateType:
 			for _, mem := range item.targets {
 				path, is := mem.(*map_locationType)
-				if !is || path.itemType != mitPath {
+				if !is || (path.itemType != mitPath && len(path.location) != 2) {
 					return nil, path.Error(
-						"aggregate member '%s' is not a path", path.Name())
+						"aggregate member '%s' is not a path or waypoint",
+						path.Name())
 				}
 				gatheredPaths, err = extendContinuousPath(gatheredPaths, path)
 				if err != nil {
@@ -221,7 +222,7 @@ func (ms *mapSegmentType) gatherPaths() ([]pathLocationInfo, error) {
 				}
 			}
 		default:
-			return nil, item.Error("'%s' is not a path", item.Name())
+			return nil, item.Error("'%s' is not a path or waypoint", item.Name())
 		}
 	}
 	return gatheredPaths, nil
@@ -231,33 +232,40 @@ func (ms *mapSegmentType) gatherPaths() ([]pathLocationInfo, error) {
 func (route *mapRouteType) gatherPaths() ([]pathLocationInfo, error) {
 	var paths [][]pathLocationInfo
 	for _, seg := range route.segments {
-		switch item := seg.(type) {
-		case *map_locationType:
-			if item.itemType != mitPath {
-				return nil, item.Error("'%s' is not a path", item.Name())
-			}
+		switch seg.ItemType() {
+		case mitPath, mitPoint, mitMarker, mitCircle:
+			item := seg.(*map_locationType)
 			lat, long := item.location.oppositeEndpoint(pathMatchForward)
 			paths = append(paths, []pathLocationInfo{{item, lat, long, true}})
-		case *mapSegmentType:
+		case mitSegment:
+			item := seg.(*mapSegmentType)
 			pts, err := item.gatherPaths()
 			if err != nil {
 				return nil, err
 			}
 			paths = append(paths, pts)
-		case *map_referenceAggregateType:
+		case mitSegments:
+			item := seg.(*map_referenceAggregateType)
 			for _, mem := range item.targets {
-				sg, is := mem.(*mapSegmentType)
-				if !is {
-					return nil, mem.Error("'%s' is not a segment", mem.Name())
+				switch mem.ItemType() {
+				case mitSegment:
+					sg := mem.(*mapSegmentType)
+					pts, err := sg.gatherPaths()
+					if err != nil {
+						return nil, err
+					}
+					paths = append(paths, pts)
+				case mitPath, mitPoint, mitMarker, mitCircle:
+					pth := mem.(*map_locationType)
+					lat, long := pth.location.oppositeEndpoint(pathMatchForward)
+					paths = append(paths, []pathLocationInfo{{pth, lat, long, true}})
+				default:
+					return nil, mem.Error("'%s' is not a segment, path, or waypoint",
+						mem.Name())
 				}
-				pts, err := sg.gatherPaths()
-				if err != nil {
-					return nil, err
-				}
-				paths = append(paths, pts)
 			}
 		default:
-			return nil, seg.Error("'%s' is not a path, segment, or segment list",
+			return nil, seg.Error("'%s' is not a path, segment, segment list, or waypoint",
 				seg.Name())
 		}
 	}

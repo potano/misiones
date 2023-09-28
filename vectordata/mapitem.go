@@ -31,15 +31,13 @@ func (rv readerValet) NewChild(listType, listName string, source sexp.ValueSourc
 		constructor = newMap_referenceAggregate
 	case "feature":
 		constructor = newMapFeature
-	case "marker":
-		constructor = newMapMarker
 	case "popup":
 		constructor = newMapPopup
 	case "style":
 		constructor = newMapStyle
 	case "attestation":
 		constructor = newMapAttestation
-	case "point", "path", "rectangle", "polygon", "circle":
+	case "point", "path", "rectangle", "polygon", "circle", "marker":
 		constructor = newMap_location
 	case "route":
 		constructor = newMapRoute
@@ -273,42 +271,6 @@ func (mf *mapFeatureType) styleAndAttestation() (*mapStyleType, *mapAttestationT
 
 
 
-type mapMarkerType struct {
-	mapItemCore
-	popup *mapPopupType
-	html string
-	location locationPairs
-}
-
-func newMapMarker(doc *VectorData, parent mapItemType, listType, listName string,
-		source sexp.ValueSource) (mapItemType, error) {
-	mm := &mapMarkerType{}
-	mm.source = source
-	name, err := doc.registerMapItem(mm, listName)
-	mm.name = name
-	return mm, err
-}
-
-func (mm *mapMarkerType) ItemType() int {
-	return mitMarker
-}
-
-func (mm *mapMarkerType) setPopup(popup *mapPopupType) {
-	mm.popup = popup
-}
-
-func (mm *mapMarkerType) setHtml(html *map_textType) {
-	mm.html = html.text
-}
-
-func (mm *mapMarkerType) addScalars(targetName string, scalars []sexp.LispScalar) error {
-	var err error
-	mm.location, err = toLocationPairs(scalars)
-	return err
-}
-
-
-
 type mapPopupType struct {
 	mapItemCore
 	text string
@@ -336,6 +298,7 @@ type map_locationType struct {
 	mapItemCore
 	itemType int
 	popup *mapPopupType
+	html string
 	style *mapStyleType
 	attestation *mapAttestationType
 	radius, radiusType int
@@ -364,6 +327,10 @@ func (ml *map_locationType) ItemType() int {
 
 func (ml *map_locationType) setPopup(popup *mapPopupType) {
 	ml.popup = popup
+}
+
+func (ml *map_locationType) setHtml(html *map_textType) {
+	ml.html = html.text
 }
 
 func (ml *map_locationType) setStyle(style *mapStyleType) {

@@ -21,6 +21,11 @@ func prepareGrammar() (parser.PreparedGrammar, error) {
 				{"segment", sexp.TList, "feature"},
 				{"route", sexp.TList, "feature"},
 				{"path", sexp.TList, "feature"},
+				{"point", sexp.TList, "feature"},
+				{"marker", sexp.TList, "feature"},
+				{"circle", sexp.TList, "feature"},
+				{"polygon", sexp.TList, "feature"},
+				{"rectangle", sexp.TList, "feature"},
 				{"config", sexp.TList, "configItem"},
 			},
 			[]parser.TargetSpec{
@@ -179,6 +184,9 @@ func prepareGrammar() (parser.PreparedGrammar, error) {
 				{"attestation", sexp.TList, "attestation"},
 				{"segment", sexp.TList, "feature"},
 				{"path", sexp.TList, "feature"},
+				{"point", sexp.TList, "feature"},
+				{"marker", sexp.TList, "feature"},
+				{"circle", sexp.TList, "feature"},
 				{"segments", sexp.TList, "feature"},
 			},
 			[]parser.TargetSpec{
@@ -261,6 +269,9 @@ func prepareGrammar() (parser.PreparedGrammar, error) {
 				{"style", sexp.TList, "style"},
 				{"attestation", sexp.TList, "attestation"},
 				{"path", sexp.TList, "feature"},
+				{"point", sexp.TList, "feature"},
+				{"marker", sexp.TList, "feature"},
+				{"circle", sexp.TList, "feature"},
 				{"paths", sexp.TList, "feature"},
 			},
 			[]parser.TargetSpec{

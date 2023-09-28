@@ -128,8 +128,7 @@ as "nameable".  All such list names share the same namespace.
 Here are the categories and a summary of the list types which belong to the
 categories:
 
-collections:: Groupings of related items.  These are all nameable lists and may
-appear at the outer level of the source documents.
+collections:: These define structural elements that group related items.
 
 _feature_::: General-purpose grouping of geometric features, routes, and other
 features.  May have any of the _style_, _attestation_, or _popup_ attributes.
@@ -139,17 +138,20 @@ displayed on the map by means a selection box that LeafletJS displays on the map
 Must contain a _menuitem_ attribute and a _features_ list.
 
 _route_::: Connects segments and/or paths into a complete route.  Contains an ordered
-set of _segment_, _path_, and/or _segments_ components, each constituent path of which
-must share an endpoint with the neighboring path at the respective end.  May contain
-_style_, _attestation_, or _popup_ attributes.
-
-_segment_::: Connects paths into a complete segment.  As with routes, the paths
-within a segment must be connected by common endpoints.  May contain _style_,
+set of _segment_, _path_, _segments_, and/or waypoint components.  Each constituent
+path must share an endpoint with the neighboring path at the respective end and any
+waypoints must coincide with the corresponding path endpoints.  May contain _style_,
 _attestation_, or _popup_ attributes.
 
-geometric features:: Items with locations specified by latitude and longitude.  These
-are all nameable lists and may appear at the outer level of source documents.  All
-except _point_ may contain _style_, _attestation_, or _popup_ attributes.
+_segment_::: Connects paths into a complete segment.  As with routes, the paths
+and waypoints within a segment must be connected by common endpoints.  May contain
+_style_, _attestation_, or _popup_ attributes.
+
+geometric features:: These are structural items with locations specified by latitude
+and longitude.  A all nameable lists and may appear at the outer level of source
+documents.  All except _point_ may contain _style_, _attestation_, or _popup_
+attributes.  The point-like features—_point_, _marker_, and _circle_—may be used as
+waypoints or endpoints of a segment or route.
 
 _circle_::: Draws a circle on the map.  Requires a latitude/longitude pair for the
 center of the circle and a _radius_ or _pixels_ attribute to declare the circle's
@@ -230,11 +232,11 @@ collections
 _features_::: Collection of references to _feature_, _route_, and geometric-feature
 lists.
 
-_paths_::: Ordered collection of references to _path_ lists.  May occur only within
-_segment_ lists.
+_paths_::: Ordered collection of references to _path_, _point_, _marker_, and/or
+_circle_ lists.  May occur only within _segment_ lists.
 
-_segments_::: Ordered collection of segments and/or paths.  May occur only with
-_route_ lists.
+_segments_::: Ordered collection of segments, paths, and/or waypoints.  May occur
+only within _route_ lists.
 
 
 == Dataset organization
@@ -320,18 +322,21 @@ of that feature.
 [[Segments]]
 === Segments
 
-The _segment_ is a collection type restricted to containing paths and references to
-paths.  A _path_ is an ordered set of points and a _segment_ is an ordered set of
-paths.  The length of a _path_ can be measured, as can the length of a _segment_.  To
-make such measurements possible, two rules apply:
+The _segment_ is a collection type restricted to containing and references to paths
+and waypoints.  A _path_ is an ordered set of points and a _segment_ is an ordered
+set of paths, possibly with waypoints interspersed.  The length of a _path_ can be
+measured, as can the length of a _segment_.  To make such measurements possible, two
+rules apply:
 
-. The paths in a segment must be listed in order of travel from one end of the segment
-to the other.
+. The components of a segment must be listed in order of travel from one end of the
+segment to the other.
 
 . Each path within a segment must share an endpoint with the adjacent path(s) in the
-list of paths for the segment.
+list of paths for the segment.  Any waypoints must conincide with the appropriate
+path junctions, and any endpoints must conincide with the corresponding segment
+endpoints.
 
-The choice of the direction of travel is unimportant both for the segment as a whole
+The choice of the direction of travel is unimportant for both the segment as a whole
 and for the traversal of points within an individual path.
 
 In the following example, note that _secondPath_ continues from the point where
@@ -425,12 +430,12 @@ markers.
 [[Routes]]
 === Routes
 
-A route is an ordered collection of segments and/or paths.  As with segments, the
-components of a _route_ must be listed in order of travel of the components and
-each of these components must be linked by common endpoints.  Also in common with
-segments and paths, the choice of starting and ending points when listing a route's
-components makes no difference except for users measuring partial distances along a
-route.
+A route is an ordered collection of segments, paths, and/or waypoints.  As with
+segments, the components of a _route_ must be listed in order of travel of the
+components and each of these components must be linked by common endpoints.  Also in
+common with segments and paths, the choice of starting and ending points when listing
+a route's components makes no difference except for users measuring partial distances
+along a route.
 
 The separate _route_ type makes it possible to apply styling to the route as a whole
 without repeating the styling for each segment.  This also allows for the sharing of
@@ -443,6 +448,9 @@ object types in LeafletJS.  As is true of other nameable objects in _misiones_,
 geometric features (with the exception of _point_) may have _popup_, _style_, and
 _attestation_ attributes.
 
+Points, markers, and circles may serve as waypoints or endpoints of segments and
+routes, where they are treated as paths with zero length.
+
 All geometric features declare at least one latitude/longitude pair, which is a pair
 of floating-point values in units of degrees.  Operations in _misiones_ which compare
 points for equality measure the difference in each axis within 5×10^-7^ degrees.
@@ -452,11 +460,11 @@ longitude at 30° latitude.
 [options="header",cols="<,^,<"]
 |====
 |Type | Number of pairs | Usage
-|_point_     | 1   | coordinates of point
-|_marker_    | 1   | coordinates of base of marker
-|_circle_    | 1   | center of circle
-|_rectangle_ | 4   | corners of the rectangle
-|_polygon_   | > 1 | nodes along the perimeter of the polygon
-|_path_      | > 1 | nodes along the path
+| _point_     | 1   | coordinates of point
+| _marker_    | 1   | coordinates of base of marker
+| _circle_    | 1   | center of circle
+| _rectangle_ | 4   | corners of the rectangle
+| _polygon_   | > 1 | nodes along the perimeter of the polygon
+| _path_      | > 1 | nodes along the path
 |====
 

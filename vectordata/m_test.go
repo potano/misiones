@@ -10,6 +10,7 @@ import (
 	"testing"
 )
 
+const pointStartPath1 = "(point pointStartPath1 30.350075 -83.507595)"
 const path1 = `
 	(path path1
 		30.350075 -83.507595
@@ -425,6 +426,137 @@ func Test_measureRouteWithSegmentAndPathReversal(T *testing.T) {
 }
 
 
+func Test_measureRouteWithStartingPoint(T *testing.T) {
+	sourceText := `(layers
+		(layer one
+			(menuitem "Look")
+			(features theRoad)
+		)
+	)
+	(route theRoad
+	        (marker
+			(popup "Start of route")
+			30.350075 -83.507595
+		)
+		(segment roadSeg1
+			(paths path1 path2)
+		)
+		(segment roadSeg2
+			(paths path3 path4 path5 path6)
+		)
+	)
+	` + path1 + path2 + path3 + path4 + path5 + path6
+	vd := prepareAndParse(T, []io.Reader{strings.NewReader(sourceText)})
+	for _, test := range []struct{name string; meters float64} {
+		{"theRoad", path1_length + path2_length + path3_length + path4_length +
+			path5_length + path6_length},
+	} {
+		distance, err := vd.MeasurePath(test.name)
+		if err != nil {
+			T.Fatalf("error measuring %s: %s", test.name, err)
+		}
+		compareTestLengths(T, test.name, test.meters, distance)
+	}
+}
+
+
+func Test_measureRouteWithStartingPointByReference(T *testing.T) {
+	sourceText := `(layers
+		(layer one
+			(menuitem "Look")
+			(features theRoad)
+		)
+	)
+	(route theRoad
+	        (segments pointStartPath1)
+		(segment roadSeg1
+			(paths path1 path2)
+		)
+		(segment roadSeg2
+			(paths path3 path4 path5 path6)
+		)
+	)
+	` + path1 + path2 + path3 + path4 + path5 + path6 + pointStartPath1
+	vd := prepareAndParse(T, []io.Reader{strings.NewReader(sourceText)})
+	for _, test := range []struct{name string; meters float64} {
+		{"theRoad", path1_length + path2_length + path3_length + path4_length +
+			path5_length + path6_length},
+	} {
+		distance, err := vd.MeasurePath(test.name)
+		if err != nil {
+			T.Fatalf("error measuring %s: %s", test.name, err)
+		}
+		compareTestLengths(T, test.name, test.meters, distance)
+	}
+}
+
+
+func Test_measureRouteWithWaypoint(T *testing.T) {
+	sourceText := `(layers
+		(layer one
+			(menuitem "Look")
+			(features theRoad)
+		)
+	)
+	(route theRoad
+		(segment roadSeg1
+			(paths path1 path2)
+		)
+	        (circle
+			(radius 5)
+			30.351842 -83.520299
+		)
+		(segment roadSeg2
+			(paths path3 path4 path5 path6)
+		)
+	)
+	` + path1 + path2 + path3 + path4 + path5 + path6
+	vd := prepareAndParse(T, []io.Reader{strings.NewReader(sourceText)})
+	for _, test := range []struct{name string; meters float64} {
+		{"theRoad", path1_length + path2_length + path3_length + path4_length +
+			path5_length + path6_length},
+	} {
+		distance, err := vd.MeasurePath(test.name)
+		if err != nil {
+			T.Fatalf("error measuring %s: %s", test.name, err)
+		}
+		compareTestLengths(T, test.name, test.meters, distance)
+	}
+}
+
+
+func Test_measureRouteWithStartingPointByReferenceInSegment(T *testing.T) {
+	sourceText := `(layers
+		(layer one
+			(menuitem "Look")
+			(features theRoad)
+		)
+	)
+	(route theRoad
+		(segment roadSeg1
+			(paths pointStartPath1 path1 path2)
+		)
+		(segment roadSeg2
+			(paths path3 path4 path5 path6)
+		)
+	)
+	` + path1 + path2 + path3 + path4 + path5 + path6 + pointStartPath1
+	vd := prepareAndParse(T, []io.Reader{strings.NewReader(sourceText)})
+	for _, test := range []struct{name string; meters float64} {
+		{"theRoad", path1_length + path2_length + path3_length + path4_length +
+			path5_length + path6_length},
+	} {
+		distance, err := vd.MeasurePath(test.name)
+		if err != nil {
+			T.Fatalf("error measuring %s: %s", test.name, err)
+		}
+		compareTestLengths(T, test.name, test.meters, distance)
+	}
+}
+
+
+
+
 func Test_discontinuousSegment(T *testing.T) {
 	sourceText := `(layers
 		(layer one
@@ -444,6 +576,32 @@ func Test_discontinuousSegment(T *testing.T) {
 	vd := prepareAndParse(T, []io.Reader{strings.NewReader(sourceText)})
 	_, err := vd.MeasurePath("roadSeg1")
 	want := "infile0:23: 'path2Disconnected' does not share an endpoint with 'path1' in segment roadSeg1"
+	if err == nil || want != err.Error() {
+		T.Fatalf("wanted error \"%s\"\ngot \"%s\"", want, err)
+	}
+}
+
+
+func Test_segmentWithDisconnectedStartingPoint(T *testing.T) {
+	sourceText := `(layers
+		(layer one
+			(menuitem "Look")
+			(features theRoad)
+		)
+	)
+	(route theRoad
+		(segment roadSeg1
+			(point errant 30.350074 -83.507591)
+			(paths path1 path2)
+		)
+		(segment roadSeg2
+			(paths path3 path4 path5 path6)
+		)
+	)
+	` + path1 + path2 + path3 + path4 + path5 + path6
+	vd := prepareAndParse(T, []io.Reader{strings.NewReader(sourceText)})
+	_, err := vd.MeasurePath("roadSeg1")
+	want := "infile0:17: 'path1' does not share an endpoint with 'errant' in segment roadSeg1"
 	if err == nil || want != err.Error() {
 		T.Fatalf("wanted error \"%s\"\ngot \"%s\"", want, err)
 	}
@@ -473,6 +631,8 @@ func Test_discontinuousRoute(T *testing.T) {
 		T.Fatalf("wanted error \"%s\"\ngot \"%s\"", want, err)
 	}
 }
+
+
 
 
 func Test_measurePathUpTo(T *testing.T) {

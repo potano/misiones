@@ -38,12 +38,6 @@ func describeMapItem(pad, indent string, item mapItemType) string {
 		describeStyle(&lines, padpad, item.style)
 		describeAttestation(&lines, padpad, item.attestation)
 		children = item.features
-	case *mapMarkerType:
-		describePopup(&lines, padpad, item.popup)
-		if len(item.html) > 0 {
-			lines = append(lines, padpad + "html: '" + stringUpTo(25, item.html) + "'")
-		}
-		describeLocation(&lines, padpad, item.location)
 	case *map_referenceAggregateType:
 		lines = append(lines, padpad + "parent: " + item.parentName)
 		line := padpad + "target names:"
@@ -68,6 +62,9 @@ func describeMapItem(pad, indent string, item mapItemType) string {
 			}
 			lines = append(lines, fmt.Sprintf("%sradius: %d %s", padpad, item.radius,
 				units))
+		}
+		if len(item.html) > 0 {
+			lines = append(lines, padpad + "html: '" + stringUpTo(25, item.html) + "'")
 		}
 		describeLocation(&lines, padpad, item.location)
 	case *mapRouteType:

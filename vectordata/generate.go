@@ -62,15 +62,6 @@ func (mp *mapPopupType) nonEmptyString() nonEmptyString {
 }
 
 
-func (mm *mapMarkerType) generateJs() string {
-	return generateJsObject(
-		"t", "marker",
-		"popup", mm.popup.nonEmptyString(),
-		"html", mm.html,
-		"coords", mm.location)
-}
-
-
 func (ml *map_locationType) generateJs() string {
 	if ml.itemType == mitCircle {
 		var asPixels bool
@@ -88,6 +79,7 @@ func (ml *map_locationType) generateJs() string {
 	return generateJsObject(
 		"t", typeMapToName[ml.itemType],
 		"popup", ml.popup.nonEmptyString(),
+		"html", nonEmptyString(ml.html),
 		"style", attestationOrStyle(ml.attestation, ml.style),
 		"coords", ml.location)
 }
