@@ -16,29 +16,25 @@ func prepareGrammar() (parser.PreparedGrammar, error) {
 		{
 			"0", parser.UnnamedList,
 			[]parser.SymbolAction{
-				{"layers", sexp.TList, "layer"},
+				{"layers", sexp.TList, "feature"},
 				{"feature", sexp.TList, "feature"},
-				{"segment", sexp.TList, "segment"},
-				{"route", sexp.TList, "route"},
-				{"path", sexp.TList, "path"},
+				{"segment", sexp.TList, "feature"},
+				{"route", sexp.TList, "feature"},
+				{"path", sexp.TList, "feature"},
 				{"config", sexp.TList, "configItem"},
 			},
 			[]parser.TargetSpec{
-				{"layer", 0, 1, 1},
 				{"feature", 0, 0, 1},
-				{"segment", 0, 0, 1},
-				{"route", 0, 0, 1},
-				{"path", 0, 0, 1},
 				{"configItem", 0, 1, 1},
 			},
 		},
 		{
 			"layers", parser.UnnamedList,
 			[]parser.SymbolAction{
-				{"layer", sexp.TList, "layer"},
+				{"layer", sexp.TList, "feature"},
 			},
 			[]parser.TargetSpec{
-				{"layer", 1, 0, 1},
+				{"feature", 1, 0, 1},
 			},
 		},
 		{
@@ -74,7 +70,7 @@ func prepareGrammar() (parser.PreparedGrammar, error) {
 			"feature", parser.NameOptional,
 			[]parser.SymbolAction{
 				{"popup", sexp.TList, "popup"},
-				{"marker", sexp.TList, "marker"},
+				{"marker", sexp.TList, "feature"},
 				{"style", sexp.TList, "style"},
 				{"attestation", sexp.TList, "attestation"},
 				{"point", sexp.TList, "feature"},
@@ -88,7 +84,6 @@ func prepareGrammar() (parser.PreparedGrammar, error) {
 			},
 			[]parser.TargetSpec{
 				{"popup", 0, 1, 0},
-				{"marker", 0, 0, 0},
 				{"style", 0, 1, 0},
 				{"attestation", 0, 1, 0},
 				{"feature", 0, 0, 1},
@@ -265,14 +260,14 @@ func prepareGrammar() (parser.PreparedGrammar, error) {
 				{"popup", sexp.TList, "popup"},
 				{"style", sexp.TList, "style"},
 				{"attestation", sexp.TList, "attestation"},
-				{"path", sexp.TList, "path"},
-				{"paths", sexp.TList, "path"},
+				{"path", sexp.TList, "feature"},
+				{"paths", sexp.TList, "feature"},
 			},
 			[]parser.TargetSpec{
 				{"popup", 0, 1, 1},
 				{"style", 0, 1, 1},
 				{"attestation", 0, 1, 1},
-				{"path", 1, 0, 1},
+				{"feature", 1, 0, 1},
 			},
 		},
 		{

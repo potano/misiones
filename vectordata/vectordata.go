@@ -26,7 +26,6 @@ type mapItemType interface {
 	noteReferrer(string, mapItemType) error
 	Referrers() []string
 	addScalars(targetName string, scalars []sexp.LispScalar) error
-	addLayer(layer *mapLayerType)
 	setMenuitem(layer *map_textType)
 	setPopup(popup *mapPopupType)
 	setStyle(style *mapStyleType)

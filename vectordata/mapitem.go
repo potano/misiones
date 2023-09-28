@@ -97,7 +97,7 @@ func (rv readerValet) SetList(targetName, listType string, source sexp.ValueSour
 		} else {
 			curItem.setAttestation(asAttestation)
 		}
-	case "layer", "feature", "marker", "segment", "path", "route":
+	case "feature":
 		curItem.addFeature(newChild)
 	case "html":
 		if asHtml, is := newChild.(*map_textType); !is {
@@ -170,7 +170,6 @@ func (mic *mapItemCore) addScalars(targetName string, scalars []sexp.LispScalar)
 	return nil
 }
 
-func (mic *mapItemCore) addLayer(layer *mapLayerType) {}
 func (mic *mapItemCore) setMenuitem(layer *map_textType) {}
 func (mic *mapItemCore) setPopup(popup *mapPopupType) {}
 func (mic *mapItemCore) setStyle(style *mapStyleType) {}
