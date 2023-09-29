@@ -182,6 +182,7 @@ func prepareGrammar() (parser.PreparedGrammar, error) {
 				{"popup", sexp.TList, "popup"},
 				{"style", sexp.TList, "style"},
 				{"attestation", sexp.TList, "attestation"},
+				{"lengthRange", sexp.TList, "lengthRange"},
 				{"segment", sexp.TList, "feature"},
 				{"path", sexp.TList, "feature"},
 				{"point", sexp.TList, "feature"},
@@ -193,7 +194,19 @@ func prepareGrammar() (parser.PreparedGrammar, error) {
 				{"popup", 0, 1, 1},
 				{"style", 0, 1, 1},
 				{"attestation", 0, 1, 1},
+				{"lengthRange", 0, 1, 1},
 				{"feature", 0, 0, 1},
+			},
+		},
+		{
+			"lengthRange", parser.UnnamedList,
+			[]parser.SymbolAction{
+				{"", sexp.TNum, "minAndMaxLength"},
+				{"", sexp.TSymbol, "units"},
+			},
+			[]parser.TargetSpec{
+				{"minAndMaxLength", 2, 2, 0},
+				{"units", 1, 1, 0},
 			},
 		},
 		{
@@ -295,6 +308,7 @@ func prepareGrammar() (parser.PreparedGrammar, error) {
 			[]parser.SymbolAction{
 				{"baseStyle", sexp.TList, "configItem"},
 				{"attestationType", sexp.TList, "configItem"},
+				{"lengthUnit", sexp.TList, "configItem"},
 			},
 			[]parser.TargetSpec{
 				{"configItem", 1, 0, 1},
@@ -339,6 +353,17 @@ func prepareGrammar() (parser.PreparedGrammar, error) {
 			},
 			[]parser.TargetSpec{
 				{"baseStyleProperty", 0, 0, 1},
+			},
+		},
+		{
+			"lengthUnit", parser.NameRequired,
+			[]parser.SymbolAction{
+				{"", sexp.TNum, "numUnits"},
+				{"", sexp.TSymbol, "baseUnit"},
+			},
+			[]parser.TargetSpec{
+				{"numUnits", 1, 1, 0},
+				{"baseUnit", 1, 1, 0},
 			},
 		},
 	})

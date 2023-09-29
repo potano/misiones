@@ -141,7 +141,7 @@ _route_::: Connects segments and/or paths into a complete route.  Contains an or
 set of _segment_, _path_, _segments_, and/or waypoint components.  Each constituent
 path must share an endpoint with the neighboring path at the respective end and any
 waypoints must coincide with the corresponding path endpoints.  May contain _style_,
-_attestation_, or _popup_ attributes.
+_attestation_, _popup_, or _lengthRange_ attributes.
 
 _segment_::: Connects paths into a complete segment.  As with routes, the paths
 and waypoints within a segment must be connected by common endpoints.  May contain
@@ -186,6 +186,11 @@ own namespace.
 _html_::: HTML text to display as a marker rather than a marker icon.  May appear
 only in _marker_ lists.  Text must be given as one more more string tokens.
 
+_lengthRange_::: Indicates a range of lengths expected to be valid for a given route.
+Expects two floating-point values for lower and upper bounds plus an indicator of the
+units of measurement.  Predefined units are meters and miles; more may be defined for
+the dataset via the _lengthUnit_ configuration setting.
+
 _menuitem_::: Text that describes a layer in Leaflet's selection box.  Must occur
 exactly once in a _layer_ list but is prohibited everwhere else.  Text must be given
 as a string token.
@@ -225,6 +230,9 @@ list.
 _modStyle_::: Declares a set of LeafletJS style properties to override in the base
 style for the item being display.  May appear only within _attestationType_ or _attSym_
 lists.
+
+_lengthUnit_::: Declares a length-measurement unit that may be used in _lengthRange_
+indicators of routes.
 
 lists of references:: Lists which hold references to child items to be contained in
 collections

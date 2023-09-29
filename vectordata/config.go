@@ -3,7 +3,11 @@
 
 package vectordata
 
-import "potano.misiones/sexp"
+import (
+	"strconv"
+
+	"potano.misiones/sexp"
+)
 
 
 type mapConfigType struct {
@@ -33,6 +37,8 @@ func (mc *mapConfigType) setConfigurationItem(newChild mapItemType) error {
 		return mc.doc.styler.setBaseStyle(item)
 	case *mapAttestationTypeType:
 		return mc.doc.attester.setAttestationType(item)
+	case *mapLengthUnitType:
+		return mc.doc.setLengthUnit(item)
 	default:
 		return newChild.Error("unknown config target name")
 	}
@@ -202,6 +208,43 @@ func (ma *mapAttestationTypeType) setConfigurationItem(newChild mapItemType) err
 		ma.defs = append(ma.defs, item)
 	case *mapStyleConfigType:
 		ma.styles = append(ma.styles, item.properties)
+	}
+	return nil
+}
+
+
+
+
+
+
+
+type mapLengthUnitType struct {
+	mapItemCore
+	numUnits float64
+	baseUnit string
+}
+
+func newMapLengthUnit(doc *VectorData, parent mapItemType, listType, listName string,
+		source sexp.ValueSource) (mapItemType, error) {
+	ml := &mapLengthUnitType{}
+	ml.source = source
+	ml.name = listName
+	return ml, nil
+}
+
+func (ml *mapLengthUnitType) ItemType() int {
+	return mitLengthUnit
+}
+
+func (ml *mapLengthUnitType) addScalars(targetName string, scalars []sexp.LispScalar) error {
+	if targetName == "numUnits" {
+		f, err := strconv.ParseFloat(scalars[0].String(), 64)
+		if err != nil {
+			return err
+		}
+		ml.numUnits = f
+	} else if targetName == "baseUnit" {
+		ml.baseUnit = scalars[0].String()
 	}
 	return nil
 }

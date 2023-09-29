@@ -41,6 +41,8 @@ func (rv readerValet) NewChild(listType, listName string, source sexp.ValueSourc
 		constructor = newMap_location
 	case "route":
 		constructor = newMapRoute
+	case "lengthRange":
+		constructor = newMapLengthRange
 	case "radius", "pixels":
 		constructor = newMapRadius
 	case "segment":
@@ -53,6 +55,8 @@ func (rv readerValet) NewChild(listType, listName string, source sexp.ValueSourc
 		constructor = newMapAttestationType
 	case "attSym":
 		constructor = newAttSym
+	case "lengthUnit":
+		constructor = newMapLengthUnit
 	}
 	newItem, err := constructor(rv.doc, rv.curItem, listType, listName, source)
 	if err != nil {
@@ -114,6 +118,7 @@ func (rv readerValet) SetList(targetName, listType string, source sexp.ValueSour
 		if err != nil {
 			return err
 		}
+	case "lengthRange":
 	default:
 		return source.Error("** internal error **: unhandled target type %s", targetName)
 	}

@@ -21,6 +21,7 @@ const (
 	mitPaths
 	mitPath
 	mitRoute
+	mitLengthRange
 	mitRectangle
 	mitPolygon
 	mitCircle
@@ -33,6 +34,7 @@ const (
 	mitAttestationType
 	mitAttSym
 	mitModStyle
+	mitLengthUnit
 )
 
 var nameToTypeMap map[string]int = map[string]int{
@@ -50,6 +52,7 @@ var nameToTypeMap map[string]int = map[string]int{
 	"paths":       mitPaths,
 	"path":        mitPath,
 	"route":       mitRoute,
+	"lengthRange": mitLengthRange,
 	"rectangle":   mitRectangle,
 	"polygon":     mitPolygon,
 	"circle":      mitCircle,
@@ -62,6 +65,7 @@ var nameToTypeMap map[string]int = map[string]int{
 	"attestationType": mitAttestationType,
 	"attSym":      mitAttSym,
 	"modStyle":    mitModStyle,
+	"lengthUnit":  mitLengthUnit,
 }
 
 var typeMapToName []string = []string{
@@ -80,6 +84,7 @@ var typeMapToName []string = []string{
 	"paths",
 	"path",
 	"route",
+	"lengthRange",
 	"rectangle",
 	"polygon",
 	"circle",
@@ -92,4 +97,5 @@ var typeMapToName []string = []string{
 	"attestationType",
 	"attSym",
 	"modStyle",
+	"lengthUnit",
 }

@@ -18,7 +18,7 @@ func main() {
 	sourceDir := "."
 	var generateFile, measureName string
 	var upToDistance float64
-	var asMiles bool
+	var checkRoutes, asMiles bool
 
 	flag.StringVar(&sourceDir, "d", ".", "directory containing .sexp files")
 	flag.StringVar(&generateFile, "g", "", "name of target Javascript file")
@@ -26,6 +26,7 @@ func main() {
 	flag.Float64Var(&upToDistance, "u", 0.0,
 		"measure path only up to distance; report coordinates")
 	flag.BoolVar(&asMiles, "miles", false, "measure distances in miles, not meters")
+	flag.BoolVar(&checkRoutes, "check-routes", false, "verify expected route lengths")
 	flag.Parse()
 
 	if !isDir(sourceDir) {
@@ -79,6 +80,28 @@ func main() {
 			fatal(err.Error())
 		}
 		outfile.Close()
+	}
+
+	if checkRoutes {
+		measurements := vd.MeasureRoutesToMeasure()
+		if len(measurements) == 0 {
+			fmt.Println("No routes set up for automatic measurement")
+		} else {
+			for _, measure := range measurements {
+				if measure.Err != nil {
+					fmt.Printf("%s: %s\n", measure.Name, measure.Err)
+				} else if measure.InRange {
+					fmt.Printf("%s: length OK! (%.2f %s, %.1f meters)\n",
+						measure.Name, measure.InUnits,
+						measure.MeasurementUnit, measure.Meters)
+				} else {
+					fmt.Printf("%s: %.2f %s is out of range %.2f - %.2f\n",
+						measure.Name, measure.InUnits,
+						measure.MeasurementUnit, measure.LowBound,
+						measure.HighBound)
+				}
+			}
+		}
 	}
 
 	if len(measureName) > 0 {

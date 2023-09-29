@@ -17,6 +17,8 @@ type VectorData struct {
 	layersRoot *mapLayersType
 	styler *styler
 	attester *attester
+	lengthUnits map[string]float64
+	routesToMeasure []*mapLengthRangeType
 }
 
 type mapItemType interface {
@@ -43,6 +45,7 @@ type mapItemType interface {
 func NewVectorData() *VectorData {
 	return &VectorData{
 		mapItems: map[string]mapItemType{},
+		lengthUnits: initialLengthUnitMap(),
 	}
 }
 
