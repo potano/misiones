@@ -21,7 +21,7 @@ func (vd *VectorData) GenerateJs() (string, error) {
 	}
 	for _, name := range vd.inDependencyOrder {
 		obj := vd.mapItems[name]
-		if len(obj.Referrers()) > 1 {
+		if len(obj.Referrers()) > 1 && obj.ItemType() != mitPoint {
 			blobs = append(blobs, "var " + obj.Name() + "=" + obj.generateJs())
 		}
 	}
@@ -122,14 +122,19 @@ func (mis featurizer) generateJs() string {
 
 func generateJsFeaturesList(features []mapItemType) string {
 	blobs := make([]string, len(features))
-	for i, feature := range features {
+	var i int
+	for _, feature := range features {
+		if feature.ItemType() == mitPoint {
+			continue;
+		}
 		if len(feature.Referrers()) > 1 {
 			blobs[i] = feature.Name()
 		} else {
 			blobs[i] = feature.generateJs()
 		}
+		i++
 	}
-	return strings.Join(blobs, ",")
+	return strings.Join(blobs[:i], ",")
 }
 
 func generateJsObject(args ...any) string {
