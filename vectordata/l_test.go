@@ -4,10 +4,8 @@
 package vectordata
 
 import (
-	"io"
 	"fmt"
 	"math"
-	"strings"
 	"testing"
 )
 
@@ -91,7 +89,7 @@ func Test_measureExpectedRouteLengthMeters(T *testing.T) {
 		)
 	)
 	` + path1 + path2 + path3 + path4 + path5 + path6
-	vd := prepareAndParse(T, []io.Reader{strings.NewReader(sourceText)})
+	vd := prepareAndParseStrings(T, sourceText)
 	measurements := vd.MeasureRoutesToMeasure()
 	want := []routeMeasurement{
 		{"theRoad", "meters", 1634.76, 1634.76, 1600, 1700, nil, true},
@@ -117,7 +115,7 @@ func Test_measureExpectedRouteLengthUnknownUnit(T *testing.T) {
 		)
 	)
 	` + path1 + path2 + path3 + path4 + path5 + path6
-	vd := prepareAndParse(T, []io.Reader{strings.NewReader(sourceText)})
+	vd := prepareAndParseStrings(T, sourceText)
 	measurements := vd.MeasureRoutesToMeasure()
 	wantErr := "infile0:8: measurement unit 'chains' is undefined"
 	want := []routeMeasurement{
@@ -148,7 +146,7 @@ func Test_measureExpectedRouteLengthLeagues(T *testing.T) {
 		(lengthUnit leagues 1 league)
 	)
 	` + path1 + path2 + path3 + path4 + path5 + path6
-	vd := prepareAndParse(T, []io.Reader{strings.NewReader(sourceText)})
+	vd := prepareAndParseStrings(T, sourceText)
 	measurements := vd.MeasureRoutesToMeasure()
 	want := []routeMeasurement{
 		{"theRoad", "leagues", 1634.76, 0.34, 1, 1.5, nil, false},

@@ -43,6 +43,15 @@ func prepareAndParseExpectingError(T *testing.T, streams []io.Reader, errmsg str
 	}
 }
 
+func prepareAndParseStrings(T *testing.T, sourceList ...string) *VectorData {
+	T.Helper()
+	streams := make([]io.Reader, len(sourceList))
+	for i, str := range sourceList {
+		streams[i] = strings.NewReader(str)
+	}
+	return prepareAndParse(T, streams)
+}
+
 func basePrepareAndParse(T *testing.T, streams []io.Reader, notePhase bool) (*VectorData, error) {
 	T.Helper()
 	vd, vdReader := prepareReader(T)

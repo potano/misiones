@@ -4,9 +4,7 @@
 package vectordata
 
 import (
-	"io"
 	"math"
-	"strings"
 	"testing"
 )
 
@@ -166,7 +164,7 @@ func Test_measurePaths(T *testing.T) {
 		)
 	)
 	` + path1 + path2 + path3 + path4 + path5 + path6
-	vd := prepareAndParse(T, []io.Reader{strings.NewReader(sourceText)})
+	vd := prepareAndParseStrings(T, sourceText)
 	for _, test := range []struct{name string; meters float64} {
 		{"path1", path1_length},
 		{"path2", path2_length},
@@ -200,7 +198,7 @@ func Test_measureReversePaths(T *testing.T) {
 		)
 	)
 	` + path1Reversed + path2Reversed + path3Reversed + path6Reversed
-	vd := prepareAndParse(T, []io.Reader{strings.NewReader(sourceText)})
+	vd := prepareAndParseStrings(T, sourceText)
 	for _, test := range []struct{name string; meters float64} {
 		{"path1Reversed", path1_length},
 		{"path2Reversed", path2_length},
@@ -232,7 +230,7 @@ func Test_measureSegments(T *testing.T) {
 		)
 	)
 	` + path1 + path2 + path3 + path4 + path5 + path6
-	vd := prepareAndParse(T, []io.Reader{strings.NewReader(sourceText)})
+	vd := prepareAndParseStrings(T, sourceText)
 	for _, test := range []struct{name string; meters float64} {
 		{"roadSeg1", path1_length + path2_length},
 		{"roadSeg2", path3_length + path4_length + path5_length + path6_length},
@@ -262,7 +260,7 @@ func Test_measureSegmentsWithPathReversals(T *testing.T) {
 		)
 	)
 	` + path1 + path2Reversed + path3 + path4 + path5 + path6Reversed
-	vd := prepareAndParse(T, []io.Reader{strings.NewReader(sourceText)})
+	vd := prepareAndParseStrings(T, sourceText)
 	for _, test := range []struct{name string; meters float64} {
 		{"roadSeg1", path1_length + path2_length + path3_length},
 		{"roadSeg2", path4_length + path5_length + path6_length},
@@ -292,7 +290,7 @@ func Test_measureRoute(T *testing.T) {
 		)
 	)
 	` + path1 + path2 + path3 + path4 + path5 + path6
-	vd := prepareAndParse(T, []io.Reader{strings.NewReader(sourceText)})
+	vd := prepareAndParseStrings(T, sourceText)
 	for _, test := range []struct{name string; meters float64} {
 		{"theRoad", path1_length + path2_length + path3_length + path4_length +
 			path5_length + path6_length},
@@ -322,7 +320,7 @@ func Test_measureRouteWithPathReversals(T *testing.T) {
 		)
 	)
 	` + path1 + path2Reversed + path3 + path4 + path5 + path6Reversed
-	vd := prepareAndParse(T, []io.Reader{strings.NewReader(sourceText)})
+	vd := prepareAndParseStrings(T, sourceText)
 	for _, test := range []struct{name string; meters float64} {
 		{"theRoad", path1_length + path2_length + path3_length + path4_length +
 			path5_length + path6_length},
@@ -352,7 +350,7 @@ func Test_measureRouteWithFirstSegmentReversal(T *testing.T) {
 		)
 	)
 	` + path1 + path2 + path3 + path4 + path5 + path6
-	vd := prepareAndParse(T, []io.Reader{strings.NewReader(sourceText)})
+	vd := prepareAndParseStrings(T, sourceText)
 	for _, test := range []struct{name string; meters float64} {
 		{"theRoad", path1_length + path2_length + path3_length + path4_length +
 			path5_length + path6_length},
@@ -382,7 +380,7 @@ func Test_measureRouteWithSegment2Reversal(T *testing.T) {
 		)
 	)
 	` + path1 + path2 + path3 + path4 + path5 + path6
-	vd := prepareAndParse(T, []io.Reader{strings.NewReader(sourceText)})
+	vd := prepareAndParseStrings(T, sourceText)
 	for _, test := range []struct{name string; meters float64} {
 		{"theRoad", path1_length + path2_length + path3_length + path4_length +
 			path5_length + path6_length},
@@ -412,7 +410,7 @@ func Test_measureRouteWithSegmentAndPathReversal(T *testing.T) {
 		)
 	)
 	` + path1 + path2 + path3Reversed + path4 + path5 + path6
-	vd := prepareAndParse(T, []io.Reader{strings.NewReader(sourceText)})
+	vd := prepareAndParseStrings(T, sourceText)
 	for _, test := range []struct{name string; meters float64} {
 		{"theRoad", path1_length + path2_length + path3_length + path4_length +
 			path5_length + path6_length},
@@ -446,7 +444,7 @@ func Test_measureRouteWithStartingPoint(T *testing.T) {
 		)
 	)
 	` + path1 + path2 + path3 + path4 + path5 + path6
-	vd := prepareAndParse(T, []io.Reader{strings.NewReader(sourceText)})
+	vd := prepareAndParseStrings(T, sourceText)
 	for _, test := range []struct{name string; meters float64} {
 		{"theRoad", path1_length + path2_length + path3_length + path4_length +
 			path5_length + path6_length},
@@ -477,7 +475,7 @@ func Test_measureRouteWithStartingPointByReference(T *testing.T) {
 		)
 	)
 	` + path1 + path2 + path3 + path4 + path5 + path6 + pointStartPath1
-	vd := prepareAndParse(T, []io.Reader{strings.NewReader(sourceText)})
+	vd := prepareAndParseStrings(T, sourceText)
 	for _, test := range []struct{name string; meters float64} {
 		{"theRoad", path1_length + path2_length + path3_length + path4_length +
 			path5_length + path6_length},
@@ -511,7 +509,7 @@ func Test_measureRouteWithWaypoint(T *testing.T) {
 		)
 	)
 	` + path1 + path2 + path3 + path4 + path5 + path6
-	vd := prepareAndParse(T, []io.Reader{strings.NewReader(sourceText)})
+	vd := prepareAndParseStrings(T, sourceText)
 	for _, test := range []struct{name string; meters float64} {
 		{"theRoad", path1_length + path2_length + path3_length + path4_length +
 			path5_length + path6_length},
@@ -541,7 +539,7 @@ func Test_measureRouteWithStartingPointByReferenceInSegment(T *testing.T) {
 		)
 	)
 	` + path1 + path2 + path3 + path4 + path5 + path6 + pointStartPath1
-	vd := prepareAndParse(T, []io.Reader{strings.NewReader(sourceText)})
+	vd := prepareAndParseStrings(T, sourceText)
 	for _, test := range []struct{name string; meters float64} {
 		{"theRoad", path1_length + path2_length + path3_length + path4_length +
 			path5_length + path6_length},
@@ -573,7 +571,7 @@ func Test_discontinuousSegment(T *testing.T) {
 		)
 	)
 	` + path1 + path2Disconnected + path3 + path4 + path5 + path6
-	vd := prepareAndParse(T, []io.Reader{strings.NewReader(sourceText)})
+	vd := prepareAndParseStrings(T, sourceText)
 	_, err := vd.MeasurePath("roadSeg1")
 	want := "infile0:23: 'path2Disconnected' does not share an endpoint with 'path1' in segment roadSeg1"
 	if err == nil || want != err.Error() {
@@ -599,7 +597,7 @@ func Test_segmentWithDisconnectedStartingPoint(T *testing.T) {
 		)
 	)
 	` + path1 + path2 + path3 + path4 + path5 + path6
-	vd := prepareAndParse(T, []io.Reader{strings.NewReader(sourceText)})
+	vd := prepareAndParseStrings(T, sourceText)
 	_, err := vd.MeasurePath("roadSeg1")
 	want := "infile0:17: 'path1' does not share an endpoint with 'errant' in segment roadSeg1"
 	if err == nil || want != err.Error() {
@@ -624,7 +622,7 @@ func Test_discontinuousRoute(T *testing.T) {
 		)
 	)
 	` + path1 + path2 + path3 + path5 + path6
-	vd := prepareAndParse(T, []io.Reader{strings.NewReader(sourceText)})
+	vd := prepareAndParseStrings(T, sourceText)
 	_, err := vd.MeasurePath("theRoad")
 	want := "infile0:39: 'path5' does not share an endpoint with 'path3' in segment roadSeg2"
 	if err == nil || want != err.Error() {
@@ -651,7 +649,7 @@ func Test_measurePathUpTo(T *testing.T) {
 		)
 	)
 	` + path1 + path2 + path3 + path4 + path5 + path6
-	vd := prepareAndParse(T, []io.Reader{strings.NewReader(sourceText)})
+	vd := prepareAndParseStrings(T, sourceText)
 	lat, long, distance, pathName, index, err := vd.MeasurePathUpTo("path1", 600)
 	if err != nil {
 		T.Fatal(err.Error())
@@ -674,7 +672,7 @@ func Test_measurePath2UpTo(T *testing.T) {
 		)
 	)
 	` + path1 + path2
-	vd := prepareAndParse(T, []io.Reader{strings.NewReader(sourceText)})
+	vd := prepareAndParseStrings(T, sourceText)
 	lat, long, distance, pathName, index, err := vd.MeasurePathUpTo("path2", 100)
 	if err != nil {
 		T.Fatal(err.Error())
@@ -697,7 +695,7 @@ func Test_measurePath2ReversedUpTo(T *testing.T) {
 		)
 	)
 	` + path1 + path2Reversed
-	vd := prepareAndParse(T, []io.Reader{strings.NewReader(sourceText)})
+	vd := prepareAndParseStrings(T, sourceText)
 	lat, long, distance, pathName, index, err := vd.MeasurePathUpTo("path2Reversed", 100)
 	if err != nil {
 		T.Fatal(err.Error())
@@ -720,7 +718,7 @@ func Test_measureBeyondPath(T *testing.T) {
 		)
 	)
 	` + path1 + path2
-	vd := prepareAndParse(T, []io.Reader{strings.NewReader(sourceText)})
+	vd := prepareAndParseStrings(T, sourceText)
 	_, _, _, _, _, err := vd.MeasurePathUpTo("path1", 1000)
 	want := "path 'path1' is only 978.0 meters (0.61 miles) long"
 	if err == nil || err.Error() != want {
@@ -742,7 +740,7 @@ func Test_measureSegmentUpTo(T *testing.T) {
 		)
 	)
 	` + path1 + path2
-	vd := prepareAndParse(T, []io.Reader{strings.NewReader(sourceText)})
+	vd := prepareAndParseStrings(T, sourceText)
 	lat, long, distance, pathName, index, err := vd.MeasurePathUpTo("roadSeg1", 1100)
 	if err != nil {
 		T.Fatal(err.Error())
@@ -765,7 +763,7 @@ func Test_measureSegmentUpToReversedPath(T *testing.T) {
 		)
 	)
 	` + path1 + path2Reversed
-	vd := prepareAndParse(T, []io.Reader{strings.NewReader(sourceText)})
+	vd := prepareAndParseStrings(T, sourceText)
 	lat, long, distance, pathName, index, err := vd.MeasurePathUpTo("roadSeg1", 1100)
 	if err != nil {
 		T.Fatal(err.Error())
@@ -788,7 +786,7 @@ func Test_measureBeyondSegment(T *testing.T) {
 		)
 	)
 	` + path1 + path2
-	vd := prepareAndParse(T, []io.Reader{strings.NewReader(sourceText)})
+	vd := prepareAndParseStrings(T, sourceText)
 	_, _, _, _, _, err := vd.MeasurePathUpTo("roadSeg1", 2000)
 	want := "segment 'roadSeg1' is only 1235.9 meters (0.77 miles) long"
 	if err == nil || err.Error() != want {
@@ -813,7 +811,7 @@ func Test_measureRouteUpTo(T *testing.T) {
 		)
 	)
 	` + path1 + path2 + path3 + path4 + path5 + path6
-	vd := prepareAndParse(T, []io.Reader{strings.NewReader(sourceText)})
+	vd := prepareAndParseStrings(T, sourceText)
 	for _, tst := range []struct{dist, lat, long, expect float64; name string; index int} {
 		{700, 30.351014, -83.513659, 591.9, "path1", 2},
 		{1100, 30.351709, -83.519064, 1116.4, "path2", 1},
@@ -848,7 +846,7 @@ func Test_measureRouteUpToReversedPathSeg0(T *testing.T) {
 		)
 	)
 	` + path1 + path2Reversed + path3 + path4 + path5 + path6
-	vd := prepareAndParse(T, []io.Reader{strings.NewReader(sourceText)})
+	vd := prepareAndParseStrings(T, sourceText)
 	lat, long, distance, pathName, index, err := vd.MeasurePathUpTo("theRoad", 1100)
 	if err != nil {
 		T.Fatal(err.Error())
@@ -874,7 +872,7 @@ func Test_measureRouteUpToReversedSeg1(T *testing.T) {
 		)
 	)
 	` + path1 + path2 + path3 + path4 + path5 + path6
-	vd := prepareAndParse(T, []io.Reader{strings.NewReader(sourceText)})
+	vd := prepareAndParseStrings(T, sourceText)
 	for _, tst := range []struct{dist, lat, long, expect float64; name string; index int} {
 		{700, 30.351014, -83.513659, 591.9, "path1", 2},
 		{1100, 30.351709, -83.519064, 1116.4, "path2", 1},
@@ -909,7 +907,7 @@ func Test_measureRouteUpToReversedSeg1ReversedPath3(T *testing.T) {
 		)
 	)
 	` + path1 + path2 + path3Reversed + path4 + path5 + path6
-	vd := prepareAndParse(T, []io.Reader{strings.NewReader(sourceText)})
+	vd := prepareAndParseStrings(T, sourceText)
 	for _, tst := range []struct{dist, lat, long, expect float64; name string; index int} {
 		{700, 30.351014, -83.513659, 591.9, "path1", 2},
 		{1100, 30.351709, -83.519064, 1116.4, "path2", 1},
@@ -944,7 +942,7 @@ func Test_measureRouteReversedFirstSegmentUpTo(T *testing.T) {
 		)
 	)
 	` + path1 + path2 + path3 + path4 + path5 + path6
-	vd := prepareAndParse(T, []io.Reader{strings.NewReader(sourceText)})
+	vd := prepareAndParseStrings(T, sourceText)
 	for _, tst := range []struct{dist, lat, long, expect float64; name string; index int} {
 		{700, 30.351014, -83.513659, 591.9, "path1", 2},
 		{1100, 30.351709, -83.519064, 1116.4, "path2", 1},
@@ -979,7 +977,7 @@ func Test_measureRouteReversedSecondSegmentUpTo(T *testing.T) {
 		)
 	)
 	` + path1 + path2 + path3 + path4 + path5 + path6
-	vd := prepareAndParse(T, []io.Reader{strings.NewReader(sourceText)})
+	vd := prepareAndParseStrings(T, sourceText)
 	for _, tst := range []struct{dist, lat, long, expect float64; name string; index int} {
 		{700, 30.351014, -83.513659, 591.9, "path1", 2},
 		{1100, 30.351709, -83.519064, 1116.4, "path2", 1},
@@ -1014,7 +1012,7 @@ func Test_measureRouteReversedBothSegmentsUpTo(T *testing.T) {
 		)
 	)
 	` + path1 + path2 + path3 + path4 + path5 + path6
-	vd := prepareAndParse(T, []io.Reader{strings.NewReader(sourceText)})
+	vd := prepareAndParseStrings(T, sourceText)
 	for _, tst := range []struct{dist, lat, long, expect float64; name string; index int} {
 		{700, 30.351014, -83.513659, 591.9, "path1", 2},
 		{1100, 30.351709, -83.519064, 1116.4, "path2", 1},
@@ -1049,7 +1047,7 @@ func Test_measureBeyondRoute(T *testing.T) {
 		)
 	)
 	` + path1 + path2 + path3 + path4 + path5 + path6
-	vd := prepareAndParse(T, []io.Reader{strings.NewReader(sourceText)})
+	vd := prepareAndParseStrings(T, sourceText)
 	_, _, _, _, _, err := vd.MeasurePathUpTo("theRoad", 2000)
 	want := "route 'theRoad' is only 1634.8 meters (1.02 miles) long"
 	if err == nil || err.Error() != want {

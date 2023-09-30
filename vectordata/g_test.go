@@ -3,11 +3,7 @@
 
 package vectordata
 
-import (
-	"io"
-	"strings"
-	"testing"
-)
+import "testing"
 
 
 
@@ -72,7 +68,7 @@ func Test_generateBasic(T *testing.T) {
 		)
 	)
 	`
-	vd := prepareAndParse(T, []io.Reader{strings.NewReader(sourceText)})
+	vd := prepareAndParseStrings(T, sourceText)
 
 
 	generated, err := vd.GenerateJs()

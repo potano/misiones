@@ -4,9 +4,7 @@
 package vectordata
 
 import (
-	"io"
 	"fmt"
-	"strings"
 	"testing"
 )
 
@@ -250,7 +248,7 @@ func Test_routeSegmentPathsConfig(T *testing.T) {
 		)
 	)
 	`
-	vd := prepareAndParse(T, []io.Reader{strings.NewReader(sourceText)})
+	vd := prepareAndParseStrings(T, sourceText)
 
 	checkParse(T, vd,
 `→layers '$0' @ infile0:1
@@ -436,7 +434,7 @@ func Test_routeSegmentPathsConfigStyled(T *testing.T) {
 		)
 	)
 	`
-	vd := prepareAndParse(T, []io.Reader{strings.NewReader(sourceText)})
+	vd := prepareAndParseStrings(T, sourceText)
 
 	checkParse(T, vd,
 `→layers '$0' @ infile0:1
@@ -662,7 +660,7 @@ func Test_routeSegmentPathsConfigStyledAttestationModifiesStyle(T *testing.T) {
 		)
 	)
 	`
-	vd := prepareAndParse(T, []io.Reader{strings.NewReader(sourceText)})
+	vd := prepareAndParseStrings(T, sourceText)
 
 	checkParse(T, vd,
 `→layers '$0' @ infile0:1
