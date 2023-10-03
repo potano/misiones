@@ -679,7 +679,7 @@ func Test_illegalChildFeature(T *testing.T) {
 	)
 	`
 	prepareAndParseExpectingError(T, []io.Reader{strings.NewReader(sourceText)},
-		"infile0:13: referenced item 'two' is a layer type; only feature, marker, point, path, polygon, rectangle, circle, and route allowed")
+		"infile0:13: referenced item 'two' is a layer type; only feature, marker, point, path, polygon, rectangle, circle, route, and segment allowed")
 }
 
 

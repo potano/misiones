@@ -14,12 +14,6 @@ type locationPairs []float64
 
 const samePointDistance = 4E-7
 
-const (
-	noPathMatch = iota
-	pathMatchForward
-	pathMatchReverse
-)
-
 
 func toLocationPairs(scalars []sexp.LispScalar) (locationPairs, error) {
 	out := make([]float64, len(scalars))
@@ -44,30 +38,24 @@ func (lp locationPairs) generateJs() string {
 	return "[" + strings.Join(out, ",") + "]"
 }
 
-func (lp locationPairs) pathEndpointMatch(lat, long float64) int {
-	if len(lp) < 2 {
-		return noPathMatch
+func (lp locationPairs) indexOfPoint(lat, long float64) int {
+	for i := 0; i < len(lp); i += 2 {
+		if isSamePoint(lat, long, lp[i], lp[i+1]) {
+			return i
+		}
 	}
-	latDiff, longDiff := lat - lp[0], long - lp[1]
-	if -samePointDistance < latDiff && latDiff < samePointDistance &&
-			-samePointDistance < longDiff && longDiff < samePointDistance {
-		return pathMatchForward
-	}
-	latDiff, longDiff = lat - lp[len(lp)-2], long - lp[len(lp)-1]
-	if -samePointDistance < latDiff && latDiff < samePointDistance &&
-			-samePointDistance < longDiff && longDiff < samePointDistance {
-		return pathMatchReverse
-	}
-	return noPathMatch
+	return -1
 }
 
-func (lp locationPairs) oppositeEndpoint(nearEndpoint int) (float64, float64) {
-	if len(lp) < 2 {
-		return 0, 0
-	}
-	if nearEndpoint == pathMatchForward {
-		return lp[len(lp)-2], lp[len(lp)-1]
-	}
-	return lp[0], lp[1]
+func (lp locationPairs) haveMatchingEndpoint(lat, long float64) bool {
+	return isSamePoint(lat, long, lp[0], lp[1]) ||
+		isSamePoint(lat, long, lp[len(lp)-2], lp[len(lp)-1])
+}
+
+func isSamePoint(lat1, long1, lat2, long2 float64) bool {
+	latDiff := lat1 - lat2
+	longDiff := long1 - long2
+	return -samePointDistance < latDiff && latDiff < samePointDistance &&
+			-samePointDistance < longDiff && longDiff < samePointDistance
 }
 

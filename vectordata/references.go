@@ -47,11 +47,11 @@ func (mr *map_referenceAggregateType) resolveTargets(doc *VectorData) error {
 		acceptable = []int{mitLayer}
 	case mitFeatures:
 		acceptable = []int{mitFeature, mitMarker, mitPoint, mitPath, mitPolygon,
-			mitRectangle, mitCircle, mitRoute}
+			mitRectangle, mitCircle, mitRoute, mitSegment}
 	case mitPaths:
 		acceptable = []int{mitPath, mitPoint, mitMarker, mitCircle}
 	case mitSegments:
-		acceptable = []int{mitSegment, mitPath, mitPoint, mitMarker, mitCircle}
+		acceptable = []int{mitSegment, mitPoint, mitMarker, mitCircle}
 	}
 	mr.targets = make([]mapItemType, len(mr.names))
 	for i, scalar := range mr.names {

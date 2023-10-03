@@ -137,21 +137,26 @@ _layer_::: Declares a layer, which is a set of map items which can be hidden fro
 displayed on the map by means a selection box that LeafletJS displays on the map.
 Must contain a _menuitem_ attribute and a _features_ list.
 
-_route_::: Connects segments and/or paths into a complete route.  Contains an ordered
-set of _segment_, _path_, _segments_, and/or waypoint components.  Each constituent
-path must share an endpoint with the neighboring path at the respective end and any
-waypoints must coincide with the corresponding path endpoints.  May contain _style_,
-_attestation_, _popup_, or _lengthRange_ attributes.
+_route_::: Connects an ordered set segments into a complete route.  Segments may be
+elaborated explicitly in a _segment_ list contained in the _route_ or via indirect
+references in a _segments_ list.  Each constituent segment must share an endpoint
+with its neighboring segments and likewise the paths of each segment must align with
+its neighboring paths and/or waypoints.
+May contain _style_, _attestation_, _popup_, or _lengthRange_ attributes.
 
-_segment_::: Connects paths into a complete segment.  As with routes, the paths
-and waypoints within a segment must be connected by common endpoints.  May contain
-_style_, _attestation_, or _popup_ attributes.
+_segment_::: Connects an ordered list of paths into a complete segment.  Paths and
+waypoints may be written as _path_, _point_, _marker_, or _circle_ lists directly
+within the _segment_ list or may be specified indirectly in a _paths_ list.  Paths in
+a segment typically share endpoints with their neighboring paths, but if a waypoint
+is listed between two paths, one or both of the paths are effectively shortened so
+that the waypoint marks the join point of the paths.
+A _segment_ may contain _style_, _attestation_, or _popup_ attributes.
 
 geometric features:: These are structural items with locations specified by latitude
 and longitude.  A all nameable lists and may appear at the outer level of source
 documents.  All except _point_ may contain _style_, _attestation_, or _popup_
 attributes.  The point-like features—_point_, _marker_, and _circle_—may be used as
-waypoints or endpoints of a segment or route.
+waypoints or endpoints of a segment.
 
 _circle_::: Draws a circle on the map.  Requires a latitude/longitude pair for the
 center of the circle and a _radius_ or _pixels_ attribute to declare the circle's
@@ -164,7 +169,7 @@ marker-icon mechanism unless the _marker_ list contains the _html_ attribute, in
 which case the HTML is used in a LeafletJS _divIcon_.
 
 _path_::: Declares a path:  an ordered set of latitude/longitude pairs.  Paths may be
-joined in sequence via _segment_ and/or _route_ lists.
+joined in sequence via _segment_ lists.
 
 _point_::: Locates a single point on the map.  Requires a latitude/longitude pair.
 Does not allow any attributes to be set.
@@ -243,8 +248,8 @@ lists.
 _paths_::: Ordered collection of references to _path_, _point_, _marker_, and/or
 _circle_ lists.  May occur only within _segment_ lists.
 
-_segments_::: Ordered collection of segments, paths, and/or waypoints.  May occur
-only within _route_ lists.
+_segments_::: Ordered collection of segment references.  May occur only within
+_route_ lists.
 
 
 == Dataset organization
@@ -330,19 +335,19 @@ of that feature.
 [[Segments]]
 === Segments
 
-The _segment_ is a collection type restricted to containing and references to paths
-and waypoints.  A _path_ is an ordered set of points and a _segment_ is an ordered
-set of paths, possibly with waypoints interspersed.  The length of a _path_ can be
-measured, as can the length of a _segment_.  To make such measurements possible, two
-rules apply:
+The _segment_ is a collection type restricted to containing paths and waypoints.  A
+_path_ is an ordered set of points and a _segment_ is an ordered set of paths,
+possibly with waypoints interspersed.  The length of a _path_ can be measured, as can
+the length of a _segment_.  To make such measurements possible, two rules apply:
 
 . The components of a segment must be listed in order of travel from one end of the
 segment to the other.
 
-. Each path within a segment must share an endpoint with the adjacent path(s) in the
-list of paths for the segment.  Any waypoints must conincide with the appropriate
-path junctions, and any endpoints must conincide with the corresponding segment
-endpoints.
+. Each path within a segment must share an effective endpoint with the adjacent
+path(s) in the list of paths for the segment.  (If a waypoint is present, a path's
+effective endpoint becomes whatever point within the path is the same as the
+waypoint; if the point is an interior point, the path is effectively shortened.  In
+the absence of a waypoint, a path's effective endpoint is its actual endpoint.)
 
 The choice of the direction of travel is unimportant for both the segment as a whole
 and for the traversal of points within an individual path.
@@ -397,6 +402,72 @@ The above example could be rewritten as
 )
 ----
 
+Waypoints are most useful when they denote where one path splits from another.  Here
+a segment which is part of a long route has a side path leading to a feature not on
+the main path.
+
+----
+(segment partOfRoadToMarket
+    (path firstMainPath
+        30.361942 -83.490380
+        30.361698 -83.490760
+        30.361392 -83.491185
+        30.361042 -83.491603             ;location referenced by the waypoint
+        30.360669 -83.491977
+        30.360180 -83.492427
+    )
+    (path secondMainPath
+        30.360180 -83.492427
+        30.359691 -83.492833
+        30.359118 -83.493316
+        30.358496 -83.493805
+        30.357924 -83.494256
+        30.357335 -83.494726
+    )
+    (marker market
+        (popup "This is the market")
+        30.357335 -83.494726
+    )
+)
+
+(segment marketToSideFeature
+    (paths secondMainPath firstMainPath)
+    (point  30.361042 -83.491603)        ;this is the waypoint
+    (path sideRoad
+        30.361042 -83.491603
+        30.361096 -83.491630
+        30.361181 -83.491642
+        30.361196 -83.491639
+    )
+    (circle
+        (popup "Interesting place")
+        (radius 200)
+        30.361196 -83.491639
+    )
+)
+----
+
+This allows us to specify a side route—which we can measure with the usual
+measurement tools—where we can reuse part of an existing path without having to alter
+that path.  The above example has a comment on the point of the main path where the
+side road starts, but in practice there is no need to place even a comment on the
+main path.  The _marketToSideFeature_ segment includes the full _secondMainPath_
+path, part of _firstMainPath_ and all of _sideRoad_.  The waypoint effectively
+shortens _firstMainPath_ using one of that path's interior points, but does not
+shorten _sideRoad_ because the waypoint is one of the side path's endpoints.
+
+Important to note:  when a waypoint breaks to an interior point of a path, it gives
+no hint as to where the other end should be.  The other end of the shortened path
+must be specified either by a neighboring path or by a waypoint.  Indeed, it is
+allowed that _both_ effective ends of a path may be interior points indicated by
+waypoints.
+
+Note also that setting a waypoint in the middle of an existing path does nothing to
+alter that path.  A segment may set waypoints into a same path without repercussions
+to other segments doing the same.
+
+{nbsp} +
+
 A _segment_ may contain zero or one of each of _popup_, _style_, and _attestation_.
 As with other container types, these attributes apply to all the path elements
 contained in or referenced by the segment.  Individual paths may also be marked with
@@ -438,16 +509,44 @@ markers.
 [[Routes]]
 === Routes
 
-A route is an ordered collection of segments, paths, and/or waypoints.  As with
-segments, the components of a _route_ must be listed in order of travel of the
-components and each of these components must be linked by common endpoints.  Also in
+A route is an ordered collection of segments.  The segments of a _route_ must be
+listed in order of travel and each of these segments must be linked by common
+endpoints.  (Any other object type contained within a _route_ simply serves to
+decorate the map; only segments come into play for measuring distances.)  In
 common with segments and paths, the choice of starting and ending points when listing
-a route's components makes no difference except for users measuring partial distances
+a route's segments makes no difference except for users measuring partial distances
 along a route.
 
 The separate _route_ type makes it possible to apply styling to the route as a whole
 without repeating the styling for each segment.  This also allows for the sharing of
 segments across separate routes.
+
+Each route may be marked with an assertion of the route's expected length.  This can
+be useful when reconstructing the locations of historic features when distances
+between them are known but their coordinates are not.  This mechanism uses the
+_lengthRange_ list.  This specifies the minimum and maximum acceptable lengths for
+the route in terms some unit of measure.  This example expresses the distance to
+Margaritaville.
+
+----
+(lengthRange 5 6 miles)
+----
+
+The _config_ section of the dataset allows the user to define other units of
+measure.  For example, this defines a furlong in terms of meters.
+
+----
+(config
+    ; ...
+    (lengthUnit furlong 201.168 meters)
+    ; ...
+)
+----
+
+Predefined units are meters and miles.
+
+Run _misiones_ with the `-check-routes` switch to print a list of routes that
+have length assertions and whether they satisfy the assertions.
 
 === Geometric features
 
@@ -457,7 +556,8 @@ geometric features (with the exception of _point_) may have _popup_, _style_, an
 _attestation_ attributes.
 
 Points, markers, and circles may serve as waypoints or endpoints of segments and
-routes, where they are treated as paths with zero length.
+routes.  They may affect the computed length of a path by their presence but
+themselves have zero length.
 
 All geometric features declare at least one latitude/longitude pair, which is a pair
 of floating-point values in units of degrees.  Operations in _misiones_ which compare
