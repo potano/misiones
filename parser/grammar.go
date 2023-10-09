@@ -135,7 +135,7 @@ func PrepareGrammar(grammarSpec Grammar) (PreparedGrammar, error) {
 						msg = "list"
 					}
 					return prepared, fmt.Errorf(
-						"Setup error: target '%s in list '%s' is %s target",
+						"Setup error: target '%s' in list '%s' is %s target",
 						targetName, name, msg)
 				}
 			}

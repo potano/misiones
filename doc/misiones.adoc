@@ -251,6 +251,11 @@ _circle_ lists.  May occur only within _segment_ lists.
 _segments_::: Ordered collection of segment references.  May occur only within
 _route_ lists.
 
+_routeSegments_::: Selects a range of segments from a route to reuse as part of
+another route.  Just as portions of paths may be selected within a _segments_ list
+by means of waypoints, the _routeSegments_ list selects only those route points
+which fall between two specified waypoints.  May occur only within _route_ lists.
+
 
 == Dataset organization
 
@@ -517,9 +522,35 @@ common with segments and paths, the choice of starting and ending points when li
 a route's segments makes no difference except for users measuring partial distances
 along a route.
 
+There are three ways to denote which segments are to insert into a route:  _segment_
+lists to specify a segment's contents directly, _segments_ list to insert indirect
+references to segments, and _routeSegments_ to use a subset of another route's
+segments.  The full length of segments specified via the _segment_ or _segments_ list
+are included whole into the route being formed, but _routeSegments_ form selects only
+the portion of the route between two specified waypoints.
+
+This example defines a route with an initial segment with a path ending in a
+waypoint, a selection of segments from a main route between two waypoints, and then
+a final segment.
+
+----
+(route compositeRoute
+    (segment sideTrail
+        (path
+            30.46345 -84.15002
+            30.46717 -84.14993
+        )
+        (point waypoint 30.46717 -84.14993)
+    )
+    (routeSegments mainRoute waypoint waypoint2)
+    (segments waypoint2 walkway)
+)
+----
+
 The separate _route_ type makes it possible to apply styling to the route as a whole
 without repeating the styling for each segment.  This also allows for the sharing of
-segments across separate routes.
+segments across separate routes.  Reusing another route's segments via a
+_routeSegments_ list does not copy over any styling applied to that route.
 
 Each route may be marked with an assertion of the route's expected length.  This can
 be useful when reconstructing the locations of historic features when distances

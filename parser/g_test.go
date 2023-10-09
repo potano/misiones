@@ -158,7 +158,7 @@ func Test_listActionScalarTarget(T *testing.T) {
 	}
 	_, err := PrepareGrammar(grammar)
 	var gotError string
-	wantError := "Setup error: target 'trip in list 'worklist' is list target"
+	wantError := "Setup error: target 'trip' in list 'worklist' is list target"
 	if err != nil {
 		gotError = err.Error()
 	}

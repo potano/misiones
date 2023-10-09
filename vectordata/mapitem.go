@@ -27,7 +27,7 @@ func (rv readerValet) NewChild(listType, listName string, source sexp.ValueSourc
 		constructor = newMapLayer
 	case "menuitem", "html":
 		constructor = newMap_text
-	case "features", "paths", "segments":
+	case "features", "paths", "segments", "routeSegments":
 		constructor = newMap_referenceAggregate
 	case "feature":
 		constructor = newMapFeature

@@ -4,6 +4,8 @@
 package vectordata
         
 
+type gatheredSegments []*gatheredSegment
+
 type gatheredSegment struct {
 	obj mapItemType
 	paths []gatheredPath
@@ -143,6 +145,28 @@ func (seg *gatheredSegment) reverse() {
 
 
 
+func (segs gatheredSegments) reverse() {
+	for i, j := 0, len(segs) - 1; i < j; i, j = i + 1, j - 1 {
+		segs[i], segs[j] = segs[j], segs[i]
+		segs[i].reverse()
+		segs[j].reverse()
+	}
+}
+
+func (segs gatheredSegments) findPointOffset(lat, long float64) (int, int, int) {
+	for segX, seg := range segs {
+		for pathX, path := range seg.paths {
+			pointX := path.path.location.indexOfPoint(lat, long)
+			if pointX >= 0 {
+				return segX, pathX, pointX
+			}
+		}
+	}
+	return -1, -1, -1
+}
+
+
+
 func (gp gatheredPath) points() (locationPairs, int, bool) {
 	startPoint, endPoint := gp.startPoint, gp.endPoint
 	var forward bool
@@ -244,18 +268,18 @@ func (pp *pendingPathType) flush() gatheredPath {
 
 
 
-func (route *mapRouteType) threadSegments() ([]*gatheredSegment, error) {
+func (route *mapRouteType) threadSegments() (gatheredSegments, error) {
 	segments := []*gatheredSegment{}
 	for _, seg := range route.segments {
-		switch item := seg.(type) {
-		case *mapSegmentType:
-			gathered, err := item.threadPaths()
+		switch seg.ItemType() {
+		case mitSegment:
+			gathered, err := seg.(*mapSegmentType).threadPaths()
 			if err != nil {
 				return nil, err
 			}
 			segments = append(segments, gathered)
-		case *map_referenceAggregateType:
-			for _, mem := range item.targets {
+		case mitSegments:
+			for _, mem := range seg.(*map_referenceAggregateType).targets {
 				switch seg := mem.(type) {
 				case *mapSegmentType:
 					gathered, err := seg.threadPaths()
@@ -268,6 +292,15 @@ func (route *mapRouteType) threadSegments() ([]*gatheredSegment, error) {
 						typeMapToName[mem.ItemType()])
 				}
 			}
+		case mitRouteSegments:
+			agg := seg.(*map_referenceAggregateType)
+			route := agg.targets[0].(*mapRouteType)
+			startPoint, endPoint := agg.targets[1], agg.targets[2]
+			segs, err := route.segmentsBetweenPoints(startPoint, endPoint)
+			if err != nil {
+				return nil, err
+			}
+			segments = append(segments, segs...)
 		default:
 			// Ignore other object types in routes: they don't affect route length
 		}
@@ -302,6 +335,50 @@ func (route *mapRouteType) threadSegments() ([]*gatheredSegment, error) {
 		}
 		nextLat, nextLong = seg.lat2, seg.long2
 	}
+	return segments, nil
+}
+
+func (route *mapRouteType) segmentsBetweenPoints(pt1, pt2 mapItemType) (gatheredSegments, error) {
+	segments, err := route.threadSegments()
+	if err != nil {
+		return nil, err
+	}
+	points := []mapItemType{pt1, pt2}
+	var seg1, path1, pair1, seg2, path2, pair2 int
+	for ptX, pt := range points {
+		point := pt.(*map_locationType)
+		location := point.location
+		segX, pathX, pairX := segments.findPointOffset(location[0], location[1])
+		if segX < 0 {
+			return nil, pt.Error("%s '%s' is not present in route '%s",
+				typeMapToName[pt.ItemType()], pt.Name(), route.Name())
+		}
+		if ptX == 0 {
+			seg1, path1, pair1 = segX, pathX, pairX
+		} else {
+			seg2, path2, pair2 = segX, pathX, pairX
+		}
+	}
+	if seg2 < seg1 || (seg2 == seg1 && (path2 < path1 || path2 == path1 && pair2 < pair1)) {
+		segments.reverse()
+		if seg2 < seg1 {
+			seg1, seg2 = seg2, seg1
+		}
+		path1 = (len(segments[seg1].paths) - 1) - path1
+		path2 = (len(segments[seg2].paths) - 1) - path2
+	}
+	segments[seg2].paths[path2].endPoint = pair2
+	segments[seg2].paths = segments[seg2].paths[:path2+1]
+	lastPoint := segments[seg2].paths[path2].path.location
+	segments[seg2].lat2, segments[seg2].long2 = lastPoint[pair2], lastPoint[pair2+1]
+
+	segments[seg1].paths[path1].startPoint = pair1
+	segments[seg1].paths = segments[seg1].paths[path1:]
+	firstPoint := segments[seg1].paths[path1].path.location
+	segments[seg1].lat1, segments[seg1].long1 = firstPoint[pair1], firstPoint[pair1+1]
+
+	segments = segments[seg1:seg2+1]
+
 	return segments, nil
 }
 

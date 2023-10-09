@@ -35,6 +35,7 @@ const path1Spur = `
 	)
 	`
 const path1Spur_length = 9.893595
+const path1DownFromSpurLength = 386.193026
 const path1SpurWaypoint = "(point path1SpurWaypoint  30.351014 -83.513659)"
 const path1SpurReversed = `
 	(path path1SpurReversed
@@ -1171,7 +1172,6 @@ func Test_measureFirstPathSpurSpurPathReversed(T *testing.T) {
 	`
 	source2 := path1 + path2 + path3 + path4 + path5 + path6 + path1SpurReversed +
 		path1SpurWaypoint
-	const path1DownFromSpurLength = 386.193026
 	vd := prepareAndParseStrings(T, sourceText, source2)
 	for _, test := range []struct{name string; meters float64} {
 		{"path1", path1_length},

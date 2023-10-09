@@ -104,6 +104,9 @@ func (ms *mapSegmentType) generateJs() string {
 
 
 func (mr *map_referenceAggregateType) generateJs() string {
+	if mr.itemType == mitRouteSegments {
+		return mr.targets[0].generateJs()
+	}
 	return generateJsFeaturesList(mr.targets)
 }
 

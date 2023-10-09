@@ -185,6 +185,7 @@ func prepareGrammar() (parser.PreparedGrammar, error) {
 				{"attestation", sexp.TList, "attestation"},
 				{"lengthRange", sexp.TList, "lengthRange"},
 				{"segment", sexp.TList, "feature"},
+				{"routeSegments", sexp.TList, "feature"},
 				{"point", sexp.TList, "feature"},
 				{"marker", sexp.TList, "feature"},
 				{"circle", sexp.TList, "feature"},
@@ -207,6 +208,16 @@ func prepareGrammar() (parser.PreparedGrammar, error) {
 			[]parser.TargetSpec{
 				{"minAndMaxLength", 2, 2, 0},
 				{"units", 1, 1, 0},
+			},
+		},
+		{
+			"routeSegments", parser.UnnamedList,  //name IS required but checked later 
+			[]parser.SymbolAction{
+				{"", sexp.TSymbol, "reference"},
+				{"", sexp.TFloat, "reference"},
+			},
+			[]parser.TargetSpec{
+				{"reference", 3, 5, 1},
 			},
 		},
 		{
