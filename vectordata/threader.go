@@ -367,15 +367,15 @@ func (route *mapRouteType) segmentsBetweenPoints(pt1, pt2 mapItemType) (gathered
 		path1 = (len(segments[seg1].paths) - 1) - path1
 		path2 = (len(segments[seg2].paths) - 1) - path2
 	}
-	segments[seg2].paths[path2].endPoint = pair2
-	segments[seg2].paths = segments[seg2].paths[:path2+1]
 	lastPoint := segments[seg2].paths[path2].path.location
 	segments[seg2].lat2, segments[seg2].long2 = lastPoint[pair2], lastPoint[pair2+1]
+	segments[seg2].paths[path2].endPoint = pair2
+	segments[seg2].paths = segments[seg2].paths[:path2+1]
 
-	segments[seg1].paths[path1].startPoint = pair1
-	segments[seg1].paths = segments[seg1].paths[path1:]
 	firstPoint := segments[seg1].paths[path1].path.location
 	segments[seg1].lat1, segments[seg1].long1 = firstPoint[pair1], firstPoint[pair1+1]
+	segments[seg1].paths[path1].startPoint = pair1
+	segments[seg1].paths = segments[seg1].paths[path1:]
 
 	segments = segments[seg1:seg2+1]
 
