@@ -17,7 +17,9 @@ SYNOPSIS
 
 *misiones* -d _source_directory_ -m _object_name_ [-u _distance_ [-miles]]
 
-*misiones* -d _source_directory_ -m _object_name_ -check-routes
+*misiones* -d _source_directory_ [-g _output_file_] -check-routes
+
+*misiones* -d _source_directory_ -g _output_file -relax-route-check
 
 
 DESCRIPTION
@@ -102,6 +104,9 @@ point along CentralRR nearest to the 10-mile mark
 
 `misiones -d data -check-routes`:: generates a listing of routes marked with the
 _lengthRange_ attribute to note whether the routes have lengths in the expected range.
+
+`misiones -d data -g data.js -relax-route-check`:: skips test that assures that all
+routes are continuous.  May be useful during construction of data set.
 
 EXIT STATUS
 -----------

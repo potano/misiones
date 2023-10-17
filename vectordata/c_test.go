@@ -248,7 +248,7 @@ func Test_routeSegmentPathsConfig(T *testing.T) {
 		)
 	)
 	`
-	vd := prepareAndParseStrings(T, sourceText)
+	vd := prepareAndParseStringsNoRouteThreading(T, sourceText)
 
 	checkParse(T, vd,
 `→layers '$0' @ infile0:1
@@ -434,7 +434,7 @@ func Test_routeSegmentPathsConfigStyled(T *testing.T) {
 		)
 	)
 	`
-	vd := prepareAndParseStrings(T, sourceText)
+	vd := prepareAndParseStringsNoRouteThreading(T, sourceText)
 
 	checkParse(T, vd,
 `→layers '$0' @ infile0:1
@@ -660,7 +660,7 @@ func Test_routeSegmentPathsConfigStyledAttestationModifiesStyle(T *testing.T) {
 		)
 	)
 	`
-	vd := prepareAndParseStrings(T, sourceText)
+	vd := prepareAndParseStringsNoRouteThreading(T, sourceText)
 
 	checkParse(T, vd,
 `→layers '$0' @ infile0:1

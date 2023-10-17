@@ -35,6 +35,12 @@ const path1Spur = `
 	)
 	`
 const path1Spur_length = 9.893595
+const path1DownFromSpur = `
+	(path path1DownFromSpur
+		30.351014 -83.513659
+		30.351541 -83.517636
+	)
+	`
 const path1DownFromSpurLength = 386.193026
 const path1SpurWaypoint = "(point path1SpurWaypoint  30.351014 -83.513659)"
 const path1SpurReversed = `
@@ -213,10 +219,10 @@ func Test_measureReversePaths(T *testing.T) {
 			(paths path1Reversed path2Reversed path3Reversed)
 		)
 		(segment
-			(paths path6Reversed)
+			(paths path4 path5 path6Reversed)
 		)
 	)
-	` + path1Reversed + path2Reversed + path3Reversed + path6Reversed
+	` + path1Reversed + path2Reversed + path3Reversed + path4 + path5 + path6Reversed
 	vd := prepareAndParseStrings(T, sourceText)
 	for _, test := range []struct{name string; meters float64} {
 		{"path1Reversed", path1_length},
@@ -589,7 +595,7 @@ func Test_discontinuousSegment(T *testing.T) {
 		)
 	)
 	` + path1 + path2Disconnected + path3 + path4 + path5 + path6
-	vd := prepareAndParseStrings(T, sourceText)
+	vd := prepareAndParseStringsNoRouteThreading(T, sourceText)
 	_, err := vd.MeasurePath("roadSeg1")
 	want := "infile0:8: path 'path2Disconnected' does not connect with path 'path1' in segment 'roadSeg1'"
 	if err == nil || want != err.Error() {
@@ -615,7 +621,7 @@ func Test_segmentWithDisconnectedStartingPoint(T *testing.T) {
 		)
 	)
 	` + path1 + path2 + path3 + path4 + path5 + path6
-	vd := prepareAndParseStrings(T, sourceText)
+	vd := prepareAndParseStringsNoRouteThreading(T, sourceText)
 	_, err := vd.MeasurePath("roadSeg1")
 	want := "infile0:8: path 'path1' does not connect with point 'errant' in segment 'roadSeg1'"
 	if err == nil || want != err.Error() {
@@ -640,8 +646,33 @@ func Test_discontinuousRoute(T *testing.T) {
 		)
 	)
 	` + path1 + path2 + path3 + path5 + path6
-	vd := prepareAndParseStrings(T, sourceText)
+	vd := prepareAndParseStringsNoRouteThreading(T, sourceText)
 	_, err := vd.MeasurePath("theRoad")
+	want := "infile0:11: path 'path5' does not connect with path 'path3' in segment 'roadSeg2'"
+	if err == nil || want != err.Error() {
+		T.Fatalf("wanted error \"%s\"\ngot \"%s\"", want, err)
+	}
+}
+
+
+func Test_discontinuousRouteUsingThreading(T *testing.T) {
+	sourceText := `(layers
+		(layer one
+			(menuitem "Look")
+			(features theRoad)
+		)
+	)
+	(route theRoad
+		(segment roadSeg1
+			(paths path1 path2)
+		)
+		(segment roadSeg2
+			(paths path3 path5 path6)
+		)
+	)
+	` + path1 + path2 + path3 + path5 + path6
+	vd := prepareAndParseStringsNoRouteThreading(T, sourceText)
+	err := vd.CheckAndReformRoutes()
 	want := "infile0:11: path 'path5' does not connect with path 'path3' in segment 'roadSeg2'"
 	if err == nil || want != err.Error() {
 		T.Fatalf("wanted error \"%s\"\ngot \"%s\"", want, err)
@@ -1075,11 +1106,14 @@ func Test_measureBeyondRoute(T *testing.T) {
 
 
 
+// In these route-measurement tests no global route reformation is applied.
+// See similar tests reflective of reformed paths in mt_test.go
+
 func Test_measureFirstPathSpur(T *testing.T) {
 	sourceText := `(layers
 		(layer one
 			(menuitem "Look")
-			(features theRoad spurred fragments)
+			(features theRoad spurred testDownFromSpurLength)
 		)
 	)
 	(route theRoad
@@ -1096,21 +1130,15 @@ func Test_measureFirstPathSpur(T *testing.T) {
 		)
 		(segments mainSeg2)
 	)
-	(feature fragments
-		(segment path1_DownFromSpur
-			(paths path1SpurWaypoint path1)
-			(point 30.351541 -83.517636)
-		)
-	)
+	(feature testDownFromSpurLength ` + path1DownFromSpur + `)
 	`
 	source2 := path1 + path2 + path3 + path4 + path5 + path6 + path1Spur + path1SpurWaypoint
-	const path1DownFromSpurLength = 386.193026
-	vd := prepareAndParseStrings(T, sourceText, source2)
+	vd := prepareAndParseStringsNoRouteThreading(T, sourceText, source2)
 	for _, test := range []struct{name string; meters float64} {
 		{"path1", path1_length},
 		{"path2", path2_length},
 		{"path1Spur", path1Spur_length},
-		{"path1_DownFromSpur", path1DownFromSpurLength},
+		{"path1DownFromSpur", path1DownFromSpurLength},
 		{"spurred", path1Spur_length + path1DownFromSpurLength + path2_length +
 			path3_length + path4_length + path5_length + path6_length},
 	} {
@@ -1146,7 +1174,7 @@ func Test_measureFirstPathSpurSpurPathReversed(T *testing.T) {
 	sourceText := `(layers
 		(layer one
 			(menuitem "Look")
-			(features theRoad spurred fragments)
+			(features theRoad spurred)
 		)
 	)
 	(route theRoad
@@ -1163,21 +1191,14 @@ func Test_measureFirstPathSpurSpurPathReversed(T *testing.T) {
 		)
 		(segments mainSeg2)
 	)
-	(feature fragments
-		(segment path1_DownFromSpur
-			(paths path1SpurWaypoint path1)
-			(point 30.351541 -83.517636)
-		)
-	)
 	`
 	source2 := path1 + path2 + path3 + path4 + path5 + path6 + path1SpurReversed +
 		path1SpurWaypoint
-	vd := prepareAndParseStrings(T, sourceText, source2)
+	vd := prepareAndParseStringsNoRouteThreading(T, sourceText, source2)
 	for _, test := range []struct{name string; meters float64} {
 		{"path1", path1_length},
 		{"path2", path2_length},
 		{"path1SpurReversed", path1Spur_length},
-		{"path1_DownFromSpur", path1DownFromSpurLength},
 		{"spurred", path1Spur_length + path1DownFromSpurLength + path2_length +
 			path3_length + path4_length + path5_length + path6_length},
 	} {
@@ -1213,7 +1234,7 @@ func Test_measureFirstPathSpurFirstPathReversed(T *testing.T) {
 	sourceText := `(layers
 		(layer one
 			(menuitem "Look")
-			(features theRoad spurred fragments)
+			(features theRoad spurred)
 		)
 	)
 	(route theRoad
@@ -1230,22 +1251,14 @@ func Test_measureFirstPathSpurFirstPathReversed(T *testing.T) {
 		)
 		(segments mainSeg2)
 	)
-	(feature fragments
-		(segment path1_DownFromSpur
-			(paths path1SpurWaypoint path1Reversed)
-			(point 30.351541 -83.517636)
-		)
-	)
 	`
 	source2 := path1Reversed + path2 + path3 + path4 + path5 + path6 + path1Spur +
 		path1SpurWaypoint
-	const path1DownFromSpurLength = 386.193026
-	vd := prepareAndParseStrings(T, sourceText, source2)
+	vd := prepareAndParseStringsNoRouteThreading(T, sourceText, source2)
 	for _, test := range []struct{name string; meters float64} {
 		{"path1Reversed", path1_length},
 		{"path2", path2_length},
 		{"path1Spur", path1Spur_length},
-		{"path1_DownFromSpur", path1DownFromSpurLength},
 		{"spurred", path1Spur_length + path1DownFromSpurLength + path2_length +
 			path3_length + path4_length + path5_length + path6_length},
 	} {
@@ -1315,7 +1328,7 @@ func Test_measureSecondPathSpur(T *testing.T) {
 	source2 := path1 + path2 + path3 + path4 + path5 + path6
 	const path2SpurLength = 49.281260
 	const path2DownFromSpurLength = 33.440643
-	vd := prepareAndParseStrings(T, sourceText, source2)
+	vd := prepareAndParseStringsNoRouteThreading(T, sourceText, source2)
 	for _, test := range []struct{name string; meters float64} {
 		{"path2Spur", path2SpurLength},
 		{"path2_DownFromSpur", path2DownFromSpurLength},
@@ -1384,7 +1397,7 @@ func Test_measureSecondPathSpurSecondPathReversed(T *testing.T) {
 	source2 := path1 + path2Reversed + path3 + path4 + path5 + path6
 	const path2SpurLength = 49.281260
 	const path2DownFromSpurLength = 33.440643
-	vd := prepareAndParseStrings(T, sourceText, source2)
+	vd := prepareAndParseStringsNoRouteThreading(T, sourceText, source2)
 	for _, test := range []struct{name string; meters float64} {
 		{"path2Spur", path2SpurLength},
 		{"path2_DownFromSpur", path2DownFromSpurLength},
@@ -1453,7 +1466,7 @@ func Test_measureSecondPathSpurFirstMainSegmentReversed(T *testing.T) {
 	source2 := path1 + path2 + path3 + path4 + path5 + path6
 	const path2SpurLength = 49.281260
 	const path2DownFromSpurLength = 33.440643
-	vd := prepareAndParseStrings(T, sourceText, source2)
+	vd := prepareAndParseStringsNoRouteThreading(T, sourceText, source2)
 	for _, test := range []struct{name string; meters float64} {
 		{"path2Spur", path2SpurLength},
 		{"path2_DownFromSpur", path2DownFromSpurLength},

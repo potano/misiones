@@ -49,6 +49,20 @@ func prepareAndParseStrings(T *testing.T, sourceList ...string) *VectorData {
 	for i, str := range sourceList {
 		streams[i] = strings.NewReader(str)
 	}
+	vd := prepareAndParse(T, streams)
+	err := vd.CheckAndReformRoutes()
+	if err != nil {
+		T.Fatalf("error reforming routes: %s", err)
+	}
+	return vd
+}
+
+func prepareAndParseStringsNoRouteThreading(T *testing.T, sourceList ...string) *VectorData {
+	T.Helper()
+	streams := make([]io.Reader, len(sourceList))
+	for i, str := range sourceList {
+		streams[i] = strings.NewReader(str)
+	}
 	return prepareAndParse(T, streams)
 }
 

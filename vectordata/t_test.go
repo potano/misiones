@@ -216,7 +216,7 @@ func Test_gatherSegmentSinglePathWaypointBeforeMidPath(T *testing.T) {
 			(features road)
 		)
 	)
-	(route road
+	(feature road
 		(segment test
 			(point wp 2.1 2.2)
 			(path one
@@ -242,7 +242,7 @@ func Test_gatherSegmentSinglePathWaypointAfterMidPath(T *testing.T) {
 			(features road)
 		)
 	)
-	(route road
+	(feature road
 		(segment test
 			(path one
 				1.1 1.2
@@ -268,7 +268,7 @@ func Test_gatherSegmentSinglePathWaypointBeforeAndAfterMidPath(T *testing.T) {
 			(features road)
 		)
 	)
-	(route road
+	(feature road
 		(segment test
 			(point wp 2.1 2.2)
 			(path one
@@ -295,7 +295,7 @@ func Test_gatherSegmentSinglePathReversedByWaypointBefore(T *testing.T) {
 			(features road)
 		)
 	)
-	(route road
+	(feature road
 		(segment test
 			(point wp 1.1 1.2)
 			(path one
@@ -320,7 +320,7 @@ func Test_gatherSegmentSinglePathReversedByWaypointAfter(T *testing.T) {
 			(features road)
 		)
 	)
-	(route road
+	(feature road
 		(segment test
 			(path one
 				3.1 3.2
@@ -345,7 +345,7 @@ func Test_gatherSegmentSinglePathReversedByWaypointBeforeAndAfter(T *testing.T) 
 			(features road)
 		)
 	)
-	(route road
+	(feature road
 		(segment test
 			(point wp1 1.1 1.2)
 			(path one
@@ -371,7 +371,7 @@ func Test_gatherSegmentSinglePathReversedByWaypointBeforeAndAfterInMiddle(T *tes
 			(features road)
 		)
 	)
-	(route road
+	(feature road
 		(segment test
 			(point wp1 1.1 1.2)
 			(path one
@@ -397,7 +397,7 @@ func Test_gatherSegmentReversedSinglePathReversedByInteriorWaypoints(T *testing.
 			(features road)
 		)
 	)
-	(route road
+	(feature road
 		(segment test
 			(point wp1 2.1 2.2)
 			(path one
@@ -425,7 +425,7 @@ func Test_gatherSegmentTwoPathsWaypointBefore(T *testing.T) {
 			(features road)
 		)
 	)
-	(route road
+	(feature road
 		(segment test
 			(circle wp 1.1 1.2 (pixels 4))
 			(path one
@@ -456,7 +456,7 @@ func Test_gatherSegmentTwoPathsWaypointBeforeMidPath(T *testing.T) {
 			(features road)
 		)
 	)
-	(route road
+	(feature road
 		(segment test
 			(circle wp 2.1 2.2 (pixels 4))
 			(path one
@@ -487,7 +487,7 @@ func Test_gatherSegmentTwoPathsWaypointMiddleMidFirstPath(T *testing.T) {
 			(features road)
 		)
 	)
-	(route road
+	(feature road
 		(segment test
 			(path one
 				1.1 1.2
@@ -519,7 +519,7 @@ func Test_gatherSegmentTwoPathsWaypointMiddleMidSecondPath(T *testing.T) {
 			(features road)
 		)
 	)
-	(route road
+	(feature road
 		(segment test
 			(path one
 				1.1 1.2
@@ -552,7 +552,7 @@ func Test_gatherSegmentTwoPathsWaypointMiddleMidBothPaths(T *testing.T) {
 			(features road)
 		)
 	)
-	(route road
+	(feature road
 		(segment test
 			(path one
 				1.1 1.2
@@ -585,7 +585,7 @@ func Test_gatherSegmentTwoPathsWaypointEnd(T *testing.T) {
 			(features road)
 		)
 	)
-	(route road
+	(feature road
 		(segment test
 			(path one
 				1.1 1.2
@@ -616,7 +616,7 @@ func Test_gatherSegmentTwoPathsWaypointEndMidPath(T *testing.T) {
 			(features road)
 		)
 	)
-	(route road
+	(feature road
 		(segment test
 			(path one
 				1.1 1.2
@@ -647,7 +647,7 @@ func Test_gatherSegmentTwoPathsFlipFirstPath(T *testing.T) {
 			(features road)
 		)
 	)
-	(route road
+	(feature road
 		(segment test
 			(path one
 				3.1 3.2
@@ -677,7 +677,7 @@ func Test_gatherSegmentTwoPathsFlipSecondPath(T *testing.T) {
 			(features road)
 		)
 	)
-	(route road
+	(feature road
 		(segment test
 			(path one
 				1.1 1.2
@@ -707,7 +707,7 @@ func Test_gatherSegmentTwoPathsFlipSecondPathWaypointAmbiguitySolved(T *testing.
 			(features road)
 		)
 	)
-	(route road
+	(feature road
 		(segment test
 			(path one
 				1.1 1.2
@@ -740,7 +740,7 @@ func Test_gatherSegmentTwoPathsFlipSecondPathWaypointAmbiguitySolvedOtherWay(T *
 			(features road)
 		)
 	)
-	(route road
+	(feature road
 		(segment test
 			(path one
 				1.1 1.2
@@ -773,7 +773,7 @@ func Test_gatherSegmentTwoPathsFlippedByMiddleWaypoint(T *testing.T) {
 			(features road)
 		)
 	)
-	(route road
+	(feature road
 		(segment test
 			(path one
 				3.1 3.2
@@ -804,7 +804,7 @@ func Test_gatherSegmentThreePaths(T *testing.T) {
 			(features road)
 		)
 	)
-	(route road
+	(feature road
 		(segment test
 			(path one
 				1.1 1.2
@@ -840,7 +840,7 @@ func Test_gatherSegmentThreePathsFirstReversed(T *testing.T) {
 			(features road)
 		)
 	)
-	(route road
+	(feature road
 		(segment test
 			(path one
 				3.1 3.2
@@ -876,7 +876,7 @@ func Test_gatherSegmentThreePathsSecondReversed(T *testing.T) {
 			(features road)
 		)
 	)
-	(route road
+	(feature road
 		(segment test
 			(path one
 				1.1 1.2
@@ -912,7 +912,7 @@ func Test_gatherSegmentThreePathsThirdReversed(T *testing.T) {
 			(features road)
 		)
 	)
-	(route road
+	(feature road
 		(segment test
 			(path one
 				1.1 1.2
@@ -1251,7 +1251,7 @@ func Test_gatherSideRouteJoiningMainRouteAtMidFirstPath(T *testing.T) {
 	checkGatheredRouteSegments(T, vd, "sideRoute", []gsCheck{
 		{1.5, 1.6, 7.1, 7.2, []gsPath{
 			{"dogleg", true, locationPairs{1.5, 1.6, 1.3, 1.4, 2.1, 2.2}},
-			{"one", true, locationPairs{2.1, 2.2, 3.1, 3.2}},
+			{"one:1", true, locationPairs{2.1, 2.2, 3.1, 3.2}},
 			{"two", true, locationPairs{3.1, 3.2, 4.1, 4.2, 5.1, 5.2}},
 			{"three", true, locationPairs{5.1, 5.2, 6.1, 6.2, 7.1, 7.2}}}},
 	})
@@ -1315,7 +1315,7 @@ func Test_gatherSideRouteJoiningMainRouteAtEndFirstPath(T *testing.T) {
 	checkGatheredRouteSegments(T, vd, "sideRoute", []gsCheck{
 		{1.5, 1.6, 7.1, 7.2, []gsPath{
 			{"dogleg", true, locationPairs{1.5, 1.6, 1.3, 1.4, 3.1, 3.2}},
-			{"one", true, locationPairs{3.1, 3.2}},
+			{"one:1", true, locationPairs{3.1, 3.2}},
 			{"two", true, locationPairs{3.1, 3.2, 4.1, 4.2, 5.1, 5.2}},
 			{"three", true, locationPairs{5.1, 5.2, 6.1, 6.2, 7.1, 7.2}}}},
 	})
@@ -1449,9 +1449,9 @@ func Test_gatherSideRouteJoiningTwoDoglegs(T *testing.T) {
 	checkGatheredRouteSegments(T, vd, "sideRoute", []gsCheck{
 		{1.5, 1.6, 6.5, 6.6, []gsPath{
 			{"toHouse1", true, locationPairs{1.5, 1.6, 1.3, 1.4, 2.1, 2.2}},
-			{"one", true, locationPairs{2.1, 2.2, 3.1, 3.2}},
+			{"one:1", true, locationPairs{2.1, 2.2, 3.1, 3.2}},
 			{"two", true, locationPairs{3.1, 3.2, 4.1, 4.2, 5.1, 5.2}},
-			{"three", true, locationPairs{5.1, 5.2, 6.1, 6.2}},
+			{"three:1", true, locationPairs{5.1, 5.2, 6.1, 6.2}},
 			{"toHouse2", true, locationPairs{6.1, 6.2, 6.3, 6.4, 6.5, 6.6}}}},
 	})
 }
@@ -1521,9 +1521,9 @@ func Test_gatherSideRouteJoiningTwoDoglegsReversedMainPath(T *testing.T) {
 	checkGatheredRouteSegments(T, vd, "sideRoute", []gsCheck{
 		{1.5, 1.6, 6.5, 6.6, []gsPath{
 			{"toHouse1", true, locationPairs{1.5, 1.6, 1.3, 1.4, 2.1, 2.2}},
-			{"one", false, locationPairs{3.1, 3.2, 2.1, 2.2}},
+			{"one:1", false, locationPairs{3.1, 3.2, 2.1, 2.2}},
 			{"two", true, locationPairs{3.1, 3.2, 4.1, 4.2, 5.1, 5.2}},
-			{"three", true, locationPairs{5.1, 5.2, 6.1, 6.2}},
+			{"three:1", true, locationPairs{5.1, 5.2, 6.1, 6.2}},
 			{"toHouse2", true, locationPairs{6.1, 6.2, 6.3, 6.4, 6.5, 6.6}}}},
 	})
 }

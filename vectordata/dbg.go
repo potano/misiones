@@ -26,6 +26,10 @@ func (d *dbgType) Join(elems []string, sep string) string {
 	return strings.Join(elems, sep)
 }
 
+func (d *dbgType) PrintMapItem(pad, indent string, item mapItemType) {
+	fmt.Println(describeMapItem(pad, indent, item))
+}
+
 func (d *dbgType) Exit(rc int) {
 	os.Exit(rc)
 }

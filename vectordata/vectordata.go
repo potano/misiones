@@ -174,3 +174,17 @@ func (vd *VectorData) CheckInStylesAndAttestations() error {
 	return err
 }
 
+
+func (vd *VectorData) CheckAndReformRoutes() error {
+	for _, name := range vd.inDependencyOrder {
+		obj := vd.mapItems[name]
+		if route, is := obj.(*mapRouteType); is {
+			err := route.checkAndReformSegments(vd)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+

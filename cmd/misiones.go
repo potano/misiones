@@ -18,7 +18,7 @@ func main() {
 	sourceDir := "."
 	var generateFile, measureName string
 	var upToDistance float64
-	var checkRoutes, asMiles bool
+	var checkRoutes, asMiles, relaxRouteCheck bool
 
 	flag.StringVar(&sourceDir, "d", ".", "directory containing .sexp files")
 	flag.StringVar(&generateFile, "g", "", "name of target Javascript file")
@@ -27,6 +27,8 @@ func main() {
 		"measure path only up to distance; report coordinates")
 	flag.BoolVar(&asMiles, "miles", false, "measure distances in miles, not meters")
 	flag.BoolVar(&checkRoutes, "check-routes", false, "verify expected route lengths")
+	flag.BoolVar(&relaxRouteCheck, "relax-route-check", false,
+		"relax route-continuity check (debugging aid)")
 	flag.Parse()
 
 	if !isDir(sourceDir) {
@@ -59,6 +61,12 @@ func main() {
 	err = vd.ResolveReferences()
 	if err != nil {
 		fatal(err.Error())
+	}
+	if !relaxRouteCheck {
+		err = vd.CheckAndReformRoutes()
+		if err != nil {
+			fatal(err.Error())
+		}
 	}
 
 	if len(generateFile) > 0 {

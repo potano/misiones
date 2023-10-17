@@ -10,11 +10,13 @@ type gatheredSegment struct {
 	obj mapItemType
 	paths []gatheredPath
 	lat1, long1, lat2, long2 float64
+	splitSegment bool
 }
 
 type gatheredPath struct {
 	path *map_locationType
 	startPoint, endPoint int
+	waypointBefore, waypointAfter *map_locationType
 }
 
 
@@ -40,6 +42,7 @@ func (seg *mapSegmentType) threadPaths() (*gatheredSegment, error) {
 	paths := make([]gatheredPath, 0, len(allPaths))
 	var startLat, startLong, nextLat, nextLong float64
 	var pendingPath *pendingPathType
+	var waypoint *map_locationType
 	var started bool
 	var item, prevItem mapItemType
 	for _, item = range allPaths {
@@ -55,7 +58,7 @@ func (seg *mapSegmentType) threadPaths() (*gatheredSegment, error) {
 		loc := item.(*map_locationType)
 		if isPath {
 			if pendingPath == nil {
-				pendingPath = newPendingPath(loc)
+				pendingPath = newPendingPath(loc, waypoint)
 				if started {
 					if !pendingPath.setStartpoint(nextLat, nextLong) {
 						goto noConnectError
@@ -71,9 +74,11 @@ func (seg *mapSegmentType) threadPaths() (*gatheredSegment, error) {
 				}
 				nextLat, nextLong = pendingPath.getEndpoint()
 				paths = append(paths, pendingPath.flush())
-				pendingPath = newPendingPath(loc)
+				pendingPath = newPendingPath(loc, waypoint)
 			}
+			waypoint = nil
 		} else {
+			waypoint = loc
 			waypointLat, waypointLong := loc.location[0], loc.location[1]
 			if pendingPath == nil {
 				if started {
@@ -110,12 +115,13 @@ func (seg *mapSegmentType) threadPaths() (*gatheredSegment, error) {
 			started = true
 		}
 		nextLat, nextLong = pendingPath.getEndpoint()
+		pendingPath.setWaypointAfter(waypoint)
 		paths = append(paths, pendingPath.flush())
 	}
 	if len(paths) == 0 {
 		return nil, seg.Error("segment '%s' is empty", seg.Name())
 	}
-	return &gatheredSegment{seg, paths, startLat, startLong, nextLat, nextLong}, nil
+	return &gatheredSegment{seg, paths, startLat, startLong, nextLat, nextLong, false}, nil
 
 	noConnectError:
 	if prevItem != nil {
@@ -184,10 +190,11 @@ func (gp gatheredPath) points() (locationPairs, int, bool) {
 type pendingPathType struct {
 	path *map_locationType
 	startPoint, endPoint int
+	waypointBefore, waypointAfter *map_locationType
 }
 
-func newPendingPath(path *map_locationType) *pendingPathType {
-	return &pendingPathType{path, -1, -1}
+func newPendingPath(path *map_locationType, waypointBefore *map_locationType) *pendingPathType {
+	return &pendingPathType{path, -1, -1, waypointBefore, nil}
 }
 
 func (pp *pendingPathType) setStartpoint(lat, long float64) bool {
@@ -252,6 +259,10 @@ func (pp *pendingPathType) getEndpoint() (float64, float64) {
 	return loc[endPoint], loc[endPoint + 1]
 }
 
+func (pp *pendingPathType) setWaypointAfter(waypoint *map_locationType) {
+	pp.waypointAfter = waypoint
+}
+
 func (pp *pendingPathType) flush() gatheredPath {
 	loc := pp.path.location
 	startPoint := pp.startPoint
@@ -262,7 +273,7 @@ func (pp *pendingPathType) flush() gatheredPath {
 	if endPoint < 0 {
 		endPoint = len(loc) - 2
 	}
-	return gatheredPath{pp.path, startPoint, endPoint}
+	return gatheredPath{pp.path, startPoint, endPoint, pp.waypointBefore, pp.waypointAfter}
 }
 
 
@@ -371,11 +382,13 @@ func (route *mapRouteType) segmentsBetweenPoints(pt1, pt2 mapItemType) (gathered
 	segments[seg2].lat2, segments[seg2].long2 = lastPoint[pair2], lastPoint[pair2+1]
 	segments[seg2].paths[path2].endPoint = pair2
 	segments[seg2].paths = segments[seg2].paths[:path2+1]
+	segments[seg2].splitSegment = true
 
 	firstPoint := segments[seg1].paths[path1].path.location
 	segments[seg1].lat1, segments[seg1].long1 = firstPoint[pair1], firstPoint[pair1+1]
 	segments[seg1].paths[path1].startPoint = pair1
 	segments[seg1].paths = segments[seg1].paths[path1:]
+	segments[seg1].splitSegment = true
 
 	segments = segments[seg1:seg2+1]
 
@@ -388,7 +401,7 @@ func (route *mapRouteType) segmentsBetweenPoints(pt1, pt2 mapItemType) (gathered
 func (path *map_locationType) pathAsGatheredSegment() *gatheredSegment {
 	startPoint, endPoint := 0, len(path.location) - 2
 	loc := path.location
-	return &gatheredSegment{nil, []gatheredPath{{path, startPoint, endPoint}},
-		loc[0], loc[1], loc[endPoint-2], loc[endPoint-1]}
+	return &gatheredSegment{nil, []gatheredPath{{path, startPoint, endPoint, nil, nil}},
+		loc[0], loc[1], loc[endPoint-2], loc[endPoint-1], false}
 }
 
