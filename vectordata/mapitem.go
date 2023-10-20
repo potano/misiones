@@ -293,7 +293,11 @@ func (mp *mapPopupType) ItemType() int {
 }
 
 func (mp *mapPopupType) addScalars(targetName string, scalars []sexp.LispScalar) error {
-	mp.text = scalars[0].String()
+	var text string
+	for _, scalar := range scalars {
+		text += scalar.String()
+	}
+	mp.text = text
 	return nil
 }
 
