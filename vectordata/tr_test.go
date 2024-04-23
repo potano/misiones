@@ -36,12 +36,13 @@ func Test_basicRouteSlice(T *testing.T) {
 
 	vd := prepareAndParseStringsNoRouteThreading(T, sourceText)
 	checkGatheredRouteSegments(T, vd, "road", []gsCheck{
-		{1.1, 1.2, 4.1, 4.2, []gsPath{
-			{"one", true, locationPairs{1.1, 1.2, 2.1, 2.2, 3.1, 3.2, 4.1, 4.2}}}},
+		{1100000, 1200000, 4100000, 4200000, []gsPath{
+			{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000,
+				3100000, 3200000, 4100000, 4200000}}}},
 	})
 	checkGatheredRouteSegments(T, vd, "partRoad", []gsCheck{
-		{2.1, 2.2, 3.1, 3.2, []gsPath{
-			{"one", true, locationPairs{2.1, 2.2, 3.1, 3.2}}}},
+		{2100000, 2200000, 3100000, 3200000, []gsPath{
+			{"one", true, locationPairs{2100000, 2200000, 3100000, 3200000}}}},
 	})
 }
 
@@ -74,12 +75,13 @@ func Test_basicReformedRouteSlice(T *testing.T) {
 
 	vd := prepareAndParseStrings(T, sourceText)
 	checkGatheredRouteSegments(T, vd, "road", []gsCheck{
-		{1.1, 1.2, 4.1, 4.2, []gsPath{
-			{"one", true, locationPairs{1.1, 1.2, 2.1, 2.2, 3.1, 3.2, 4.1, 4.2}}}},
+		{1100000, 1200000, 4100000, 4200000, []gsPath{
+			{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000,
+				3100000, 3200000, 4100000, 4200000}}}},
 	})
 	checkGatheredRouteSegments(T, vd, "partRoad", []gsCheck{
-		{2.1, 2.2, 3.1, 3.2, []gsPath{
-			{"one:1", true, locationPairs{2.1, 2.2, 3.1, 3.2}}}},
+		{2100000, 2200000, 3100000, 3200000, []gsPath{
+			{"one:1", true, locationPairs{2100000, 2200000, 3100000, 3200000}}}},
 	})
 }
 
@@ -111,12 +113,13 @@ func Test_basicRouteSliceLiteralWaypoint1(T *testing.T) {
 
 	vd := prepareAndParseStringsNoRouteThreading(T, sourceText)
 	checkGatheredRouteSegments(T, vd, "road", []gsCheck{
-		{1.1, 1.2, 4.1, 4.2, []gsPath{
-			{"one", true, locationPairs{1.1, 1.2, 2.1, 2.2, 3.1, 3.2, 4.1, 4.2}}}},
+		{1100000, 1200000, 4100000, 4200000, []gsPath{
+			{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000,
+				3100000, 3200000, 4100000, 4200000}}}},
 	})
 	checkGatheredRouteSegments(T, vd, "partRoad", []gsCheck{
-		{2.1, 2.2, 3.1, 3.2, []gsPath{
-			{"one", true, locationPairs{2.1, 2.2, 3.1, 3.2}}}},
+		{2100000, 2200000, 3100000, 3200000, []gsPath{
+			{"one", true, locationPairs{2100000, 2200000, 3100000, 3200000}}}},
 	})
 }
 
@@ -148,12 +151,13 @@ func Test_basicReformedRouteSliceLiteralWaypoint1(T *testing.T) {
 
 	vd := prepareAndParseStrings(T, sourceText)
 	checkGatheredRouteSegments(T, vd, "road", []gsCheck{
-		{1.1, 1.2, 4.1, 4.2, []gsPath{
-			{"one", true, locationPairs{1.1, 1.2, 2.1, 2.2, 3.1, 3.2, 4.1, 4.2}}}},
+		{1100000, 1200000, 4100000, 4200000, []gsPath{
+			{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000,
+				3100000, 3200000, 4100000, 4200000}}}},
 	})
 	checkGatheredRouteSegments(T, vd, "partRoad", []gsCheck{
-		{2.1, 2.2, 3.1, 3.2, []gsPath{
-			{"one:1", true, locationPairs{2.1, 2.2, 3.1, 3.2}}}},
+		{2100000, 2200000, 3100000, 3200000, []gsPath{
+			{"one:1", true, locationPairs{2100000, 2200000, 3100000, 3200000}}}},
 	})
 }
 
@@ -185,12 +189,13 @@ func Test_basicRouteSliceLiteralWaypoint2(T *testing.T) {
 
 	vd := prepareAndParseStringsNoRouteThreading(T, sourceText)
 	checkGatheredRouteSegments(T, vd, "road", []gsCheck{
-		{1.1, 1.2, 4.1, 4.2, []gsPath{
-			{"one", true, locationPairs{1.1, 1.2, 2.1, 2.2, 3.1, 3.2, 4.1, 4.2}}}},
+		{1100000, 1200000, 4100000, 4200000, []gsPath{
+			{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000,
+				3100000, 3200000, 4100000, 4200000}}}},
 	})
 	checkGatheredRouteSegments(T, vd, "partRoad", []gsCheck{
-		{2.1, 2.2, 3.1, 3.2, []gsPath{
-			{"one", true, locationPairs{2.1, 2.2, 3.1, 3.2}}}},
+		{2100000, 2200000, 3100000, 3200000, []gsPath{
+			{"one", true, locationPairs{2100000, 2200000, 3100000, 3200000}}}},
 	})
 }
 
@@ -222,12 +227,13 @@ func Test_basicReformedRouteSliceLiteralWaypoint2(T *testing.T) {
 
 	vd := prepareAndParseStrings(T, sourceText)
 	checkGatheredRouteSegments(T, vd, "road", []gsCheck{
-		{1.1, 1.2, 4.1, 4.2, []gsPath{
-			{"one", true, locationPairs{1.1, 1.2, 2.1, 2.2, 3.1, 3.2, 4.1, 4.2}}}},
+		{1100000, 1200000, 4100000, 4200000, []gsPath{
+			{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000,
+				3100000, 3200000, 4100000, 4200000}}}},
 	})
 	checkGatheredRouteSegments(T, vd, "partRoad", []gsCheck{
-		{2.1, 2.2, 3.1, 3.2, []gsPath{
-			{"one:1", true, locationPairs{2.1, 2.2, 3.1, 3.2}}}},
+		{2100000, 2200000, 3100000, 3200000, []gsPath{
+			{"one:1", true, locationPairs{2100000, 2200000, 3100000, 3200000}}}},
 	})
 }
 
@@ -256,12 +262,13 @@ func Test_basicRouteSliceLiteralBothWaypoints(T *testing.T) {
 
 	vd := prepareAndParseStringsNoRouteThreading(T, sourceText)
 	checkGatheredRouteSegments(T, vd, "road", []gsCheck{
-		{1.1, 1.2, 4.1, 4.2, []gsPath{
-			{"one", true, locationPairs{1.1, 1.2, 2.1, 2.2, 3.1, 3.2, 4.1, 4.2}}}},
+		{1100000, 1200000, 4100000, 4200000, []gsPath{
+			{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000,
+				3100000, 3200000, 4100000, 4200000}}}},
 	})
 	checkGatheredRouteSegments(T, vd, "partRoad", []gsCheck{
-		{2.1, 2.2, 3.1, 3.2, []gsPath{
-			{"one", true, locationPairs{2.1, 2.2, 3.1, 3.2}}}},
+		{2100000, 2200000, 3100000, 3200000, []gsPath{
+			{"one", true, locationPairs{2100000, 2200000, 3100000, 3200000}}}},
 	})
 }
 
@@ -290,12 +297,13 @@ func Test_basicReformedRouteSliceLiteralBothWaypoints(T *testing.T) {
 
 	vd := prepareAndParseStrings(T, sourceText)
 	checkGatheredRouteSegments(T, vd, "road", []gsCheck{
-		{1.1, 1.2, 4.1, 4.2, []gsPath{
-			{"one", true, locationPairs{1.1, 1.2, 2.1, 2.2, 3.1, 3.2, 4.1, 4.2}}}},
+		{1100000, 1200000, 4100000, 4200000, []gsPath{
+			{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000,
+				3100000, 3200000, 4100000, 4200000}}}},
 	})
 	checkGatheredRouteSegments(T, vd, "partRoad", []gsCheck{
-		{2.1, 2.2, 3.1, 3.2, []gsPath{
-			{"one:1", true, locationPairs{2.1, 2.2, 3.1, 3.2}}}},
+		{2100000, 2200000, 3100000, 3200000, []gsPath{
+			{"one:1", true, locationPairs{2100000, 2200000, 3100000, 3200000}}}},
 	})
 }
 
@@ -324,12 +332,13 @@ func Test_basicRouteSliceFlipRoute(T *testing.T) {
 
 	vd := prepareAndParseStringsNoRouteThreading(T, sourceText)
 	checkGatheredRouteSegments(T, vd, "road", []gsCheck{
-		{1.1, 1.2, 4.1, 4.2, []gsPath{
-			{"one", true, locationPairs{1.1, 1.2, 2.1, 2.2, 3.1, 3.2, 4.1, 4.2}}}},
+		{1100000, 1200000, 4100000, 4200000, []gsPath{
+			{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000,
+				3100000, 3200000, 4100000, 4200000}}}},
 	})
 	checkGatheredRouteSegments(T, vd, "partRoad", []gsCheck{
-		{3.1, 3.2, 2.1, 2.2, []gsPath{
-			{"one", false, locationPairs{2.1, 2.2, 3.1, 3.2}}}},
+		{3100000, 3200000, 2100000, 2200000, []gsPath{
+			{"one", false, locationPairs{2100000, 2200000, 3100000, 3200000}}}},
 	})
 }
 
@@ -358,12 +367,13 @@ func Test_basicReformedRouteSliceFlipRoute(T *testing.T) {
 
 	vd := prepareAndParseStrings(T, sourceText)
 	checkGatheredRouteSegments(T, vd, "road", []gsCheck{
-		{1.1, 1.2, 4.1, 4.2, []gsPath{
-			{"one", true, locationPairs{1.1, 1.2, 2.1, 2.2, 3.1, 3.2, 4.1, 4.2}}}},
+		{1100000, 1200000, 4100000, 4200000, []gsPath{
+			{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000,
+				3100000, 3200000, 4100000, 4200000}}}},
 	})
 	checkGatheredRouteSegments(T, vd, "partRoad", []gsCheck{
-		{2.1, 2.2, 3.1, 3.2, []gsPath{
-			{"one:1", true, locationPairs{2.1, 2.2, 3.1, 3.2}}}},
+		{2100000, 2200000, 3100000, 3200000, []gsPath{
+			{"one:1", true, locationPairs{2100000, 2200000, 3100000, 3200000}}}},
 	})
 }
 
@@ -408,18 +418,23 @@ func Test_sliceTwoSegmentRoute(T *testing.T) {
 
 	vd := prepareAndParseStringsNoRouteThreading(T, sourceText)
 	checkGatheredRouteSegments(T, vd, "road", []gsCheck{
-		{1.1, 1.2, 6.1, 6.2, []gsPath{
-			{"one", true, locationPairs{1.1, 1.2, 2.1, 2.2, 3.1, 3.2, 4.1, 4.2}},
-			{"two", true, locationPairs{4.1, 4.2, 5.1, 5.2, 6.1, 6.2}}}},
-		{6.1, 6.2, 8.1, 8.2, []gsPath{
-			{"three", true, locationPairs{6.1, 6.2, 7.1, 7.2, 8.1, 8.2}}}},
+		{1100000, 1200000, 6100000, 6200000, []gsPath{
+			{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000,
+				3100000, 3200000, 4100000, 4200000}},
+			{"two", true, locationPairs{4100000, 4200000, 5100000, 5200000,
+				6100000, 6200000}}}},
+		{6100000, 6200000, 8100000, 8200000, []gsPath{
+			{"three", true, locationPairs{6100000, 6200000, 7100000, 7200000,
+				8100000, 8200000}}}},
 	})
 	checkGatheredRouteSegments(T, vd, "partRoad", []gsCheck{
-		{2.1, 2.2, 6.1, 6.2, []gsPath{
-			{"one", true, locationPairs{2.1, 2.2, 3.1, 3.2, 4.1, 4.2}},
-			{"two", true, locationPairs{4.1, 4.2, 5.1, 5.2, 6.1, 6.2}}}},
-		{6.1, 6.2, 7.1, 7.2, []gsPath{
-			{"three", true, locationPairs{6.1, 6.2, 7.1, 7.2}}}},
+		{2100000, 2200000, 6100000, 6200000, []gsPath{
+			{"one", true, locationPairs{2100000, 2200000, 3100000, 3200000,
+				4100000, 4200000}},
+			{"two", true, locationPairs{4100000, 4200000, 5100000, 5200000,
+				6100000, 6200000}}}},
+		{6100000, 6200000, 7100000, 7200000, []gsPath{
+			{"three", true, locationPairs{6100000, 6200000, 7100000, 7200000}}}},
 	})
 }
 
@@ -464,18 +479,23 @@ func Test_sliceTwoSegmentReformedRoute(T *testing.T) {
 
 	vd := prepareAndParseStrings(T, sourceText)
 	checkGatheredRouteSegments(T, vd, "road", []gsCheck{
-		{1.1, 1.2, 6.1, 6.2, []gsPath{
-			{"one", true, locationPairs{1.1, 1.2, 2.1, 2.2, 3.1, 3.2, 4.1, 4.2}},
-			{"two", true, locationPairs{4.1, 4.2, 5.1, 5.2, 6.1, 6.2}}}},
-		{6.1, 6.2, 8.1, 8.2, []gsPath{
-			{"three", true, locationPairs{6.1, 6.2, 7.1, 7.2, 8.1, 8.2}}}},
+		{1100000, 1200000, 6100000, 6200000, []gsPath{
+			{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000,
+				3100000, 3200000, 4100000, 4200000}},
+			{"two", true, locationPairs{4100000, 4200000, 5100000, 5200000,
+				6100000, 6200000}}}},
+		{6100000, 6200000, 8100000, 8200000, []gsPath{
+			{"three", true, locationPairs{6100000, 6200000, 7100000, 7200000,
+				8100000, 8200000}}}},
 	})
 	checkGatheredRouteSegments(T, vd, "partRoad", []gsCheck{
-		{2.1, 2.2, 6.1, 6.2, []gsPath{
-			{"one:1", true, locationPairs{2.1, 2.2, 3.1, 3.2, 4.1, 4.2}},
-			{"two", true, locationPairs{4.1, 4.2, 5.1, 5.2, 6.1, 6.2}}}},
-		{6.1, 6.2, 7.1, 7.2, []gsPath{
-			{"three:1", true, locationPairs{6.1, 6.2, 7.1, 7.2}}}},
+		{2100000, 2200000, 6100000, 6200000, []gsPath{
+			{"one:1", true, locationPairs{2100000, 2200000, 3100000, 3200000,
+				4100000, 4200000}},
+			{"two", true, locationPairs{4100000, 4200000, 5100000, 5200000,
+				6100000, 6200000}}}},
+		{6100000, 6200000, 7100000, 7200000, []gsPath{
+			{"three:1", true, locationPairs{6100000, 6200000, 7100000, 7200000}}}},
 	})
 }
 
@@ -525,20 +545,27 @@ func Test_sliceTwoSegmentRouteBothTwoPaths(T *testing.T) {
 
 	vd := prepareAndParseStringsNoRouteThreading(T, sourceText)
 	checkGatheredRouteSegments(T, vd, "road", []gsCheck{
-		{1.1, 1.2, 6.1, 6.2, []gsPath{
-			{"one", true, locationPairs{1.1, 1.2, 2.1, 2.2, 3.1, 3.2, 4.1, 4.2}},
-			{"two", true, locationPairs{4.1, 4.2, 5.1, 5.2, 6.1, 6.2}}}},
-		{6.1, 6.2, 10.1, 10.2, []gsPath{
-			{"three", true, locationPairs{6.1, 6.2, 7.1, 7.2, 8.1, 8.2}},
-			{"four", true, locationPairs{8.1, 8.2, 9.1, 9.2, 10.1, 10.2}}}},
+		{1100000, 1200000, 6100000, 6200000, []gsPath{
+			{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000,
+				3100000, 3200000, 4100000, 4200000}},
+			{"two", true, locationPairs{4100000, 4200000, 5100000, 5200000,
+				6100000, 6200000}}}},
+		{6100000, 6200000, 10100000, 10200000, []gsPath{
+			{"three", true, locationPairs{6100000, 6200000, 7100000, 7200000,
+				8100000, 8200000}},
+			{"four", true, locationPairs{8100000, 8200000, 9100000, 9200000,
+				10100000, 10200000}}}},
 	})
 	checkGatheredRouteSegments(T, vd, "partRoad", []gsCheck{
-		{2.1, 2.2, 6.1, 6.2, []gsPath{
-			{"one", true, locationPairs{2.1, 2.2, 3.1, 3.2, 4.1, 4.2}},
-			{"two", true, locationPairs{4.1, 4.2, 5.1, 5.2, 6.1, 6.2}}}},
-		{6.1, 6.2, 9.1, 9.2, []gsPath{
-			{"three", true, locationPairs{6.1, 6.2, 7.1, 7.2, 8.1, 8.2}},
-			{"four", true, locationPairs{8.1, 8.2, 9.1, 9.2}}}},
+		{2100000, 2200000, 6100000, 6200000, []gsPath{
+			{"one", true, locationPairs{2100000, 2200000, 3100000, 3200000,
+				4100000, 4200000}},
+			{"two", true, locationPairs{4100000, 4200000, 5100000, 5200000,
+				6100000, 6200000}}}},
+		{6100000, 6200000, 9100000, 9200000, []gsPath{
+			{"three", true, locationPairs{6100000, 6200000, 7100000, 7200000,
+				8100000, 8200000}},
+			{"four", true, locationPairs{8100000, 8200000, 9100000, 9200000}}}},
 	})
 }
 
@@ -588,20 +615,27 @@ func Test_sliceTwoSegmentReformedRouteBothTwoPaths(T *testing.T) {
 
 	vd := prepareAndParseStrings(T, sourceText)
 	checkGatheredRouteSegments(T, vd, "road", []gsCheck{
-		{1.1, 1.2, 6.1, 6.2, []gsPath{
-			{"one", true, locationPairs{1.1, 1.2, 2.1, 2.2, 3.1, 3.2, 4.1, 4.2}},
-			{"two", true, locationPairs{4.1, 4.2, 5.1, 5.2, 6.1, 6.2}}}},
-		{6.1, 6.2, 10.1, 10.2, []gsPath{
-			{"three", true, locationPairs{6.1, 6.2, 7.1, 7.2, 8.1, 8.2}},
-			{"four", true, locationPairs{8.1, 8.2, 9.1, 9.2, 10.1, 10.2}}}},
+		{1100000, 1200000, 6100000, 6200000, []gsPath{
+			{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000,
+				3100000, 3200000, 4100000, 4200000}},
+			{"two", true, locationPairs{4100000, 4200000, 5100000, 5200000,
+				6100000, 6200000}}}},
+		{6100000, 6200000, 10100000, 10200000, []gsPath{
+			{"three", true, locationPairs{6100000, 6200000, 7100000, 7200000,
+				8100000, 8200000}},
+			{"four", true, locationPairs{8100000, 8200000, 9100000, 9200000,
+				10100000, 10200000}}}},
 	})
 	checkGatheredRouteSegments(T, vd, "partRoad", []gsCheck{
-		{2.1, 2.2, 6.1, 6.2, []gsPath{
-			{"one:1", true, locationPairs{2.1, 2.2, 3.1, 3.2, 4.1, 4.2}},
-			{"two", true, locationPairs{4.1, 4.2, 5.1, 5.2, 6.1, 6.2}}}},
-		{6.1, 6.2, 9.1, 9.2, []gsPath{
-			{"three", true, locationPairs{6.1, 6.2, 7.1, 7.2, 8.1, 8.2}},
-			{"four:1", true, locationPairs{8.1, 8.2, 9.1, 9.2}}}},
+		{2100000, 2200000, 6100000, 6200000, []gsPath{
+			{"one:1", true, locationPairs{2100000, 2200000, 3100000, 3200000,
+				4100000, 4200000}},
+			{"two", true, locationPairs{4100000, 4200000, 5100000, 5200000,
+				6100000, 6200000}}}},
+		{6100000, 6200000, 9100000, 9200000, []gsPath{
+			{"three", true, locationPairs{6100000, 6200000, 7100000, 7200000,
+				8100000, 8200000}},
+			{"four:1", true, locationPairs{8100000, 8200000, 9100000, 9200000}}}},
 	})
 }
 
@@ -646,18 +680,23 @@ func Test_sliceTwoSegmentRouteReversed(T *testing.T) {
 
 	vd := prepareAndParseStringsNoRouteThreading(T, sourceText)
 	checkGatheredRouteSegments(T, vd, "road", []gsCheck{
-		{1.1, 1.2, 6.1, 6.2, []gsPath{
-			{"one", true, locationPairs{1.1, 1.2, 2.1, 2.2, 3.1, 3.2, 4.1, 4.2}},
-			{"two", true, locationPairs{4.1, 4.2, 5.1, 5.2, 6.1, 6.2}}}},
-		{6.1, 6.2, 8.1, 8.2, []gsPath{
-			{"three", true, locationPairs{6.1, 6.2, 7.1, 7.2, 8.1, 8.2}}}},
+		{1100000, 1200000, 6100000, 6200000, []gsPath{
+			{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000,
+				3100000, 3200000, 4100000, 4200000}},
+			{"two", true, locationPairs{4100000, 4200000, 5100000, 5200000,
+				6100000, 6200000}}}},
+		{6100000, 6200000, 8100000, 8200000, []gsPath{
+			{"three", true, locationPairs{6100000, 6200000, 7100000, 7200000,
+				8100000, 8200000}}}},
 	})
 	checkGatheredRouteSegments(T, vd, "partRoad", []gsCheck{
-		{7.1, 7.2, 6.1, 6.2, []gsPath{
-			{"three", false, locationPairs{6.1, 6.2, 7.1, 7.2}}}},
-		{6.1, 6.2, 2.1, 2.2, []gsPath{
-			{"two", false, locationPairs{4.1, 4.2, 5.1, 5.2, 6.1, 6.2}},
-			{"one", false, locationPairs{2.1, 2.2, 3.1, 3.2, 4.1, 4.2}}}},
+		{7100000, 7200000, 6100000, 6200000, []gsPath{
+			{"three", false, locationPairs{6100000, 6200000, 7100000, 7200000}}}},
+		{6100000, 6200000, 2100000, 2200000, []gsPath{
+			{"two", false, locationPairs{4100000, 4200000, 5100000, 5200000,
+				6100000, 6200000}},
+			{"one", false, locationPairs{2100000, 2200000, 3100000, 3200000,
+				4100000, 4200000}}}},
 	})
 }
 
@@ -702,18 +741,23 @@ func Test_sliceTwoSegmentReformedRouteReversed(T *testing.T) {
 
 	vd := prepareAndParseStrings(T, sourceText)
 	checkGatheredRouteSegments(T, vd, "road", []gsCheck{
-		{1.1, 1.2, 6.1, 6.2, []gsPath{
-			{"one", true, locationPairs{1.1, 1.2, 2.1, 2.2, 3.1, 3.2, 4.1, 4.2}},
-			{"two", true, locationPairs{4.1, 4.2, 5.1, 5.2, 6.1, 6.2}}}},
-		{6.1, 6.2, 8.1, 8.2, []gsPath{
-			{"three", true, locationPairs{6.1, 6.2, 7.1, 7.2, 8.1, 8.2}}}},
+		{1100000, 1200000, 6100000, 6200000, []gsPath{
+			{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000,
+				3100000, 3200000, 4100000, 4200000}},
+			{"two", true, locationPairs{4100000, 4200000, 5100000, 5200000,
+				6100000, 6200000}}}},
+		{6100000, 6200000, 8100000, 8200000, []gsPath{
+			{"three", true, locationPairs{6100000, 6200000, 7100000, 7200000,
+				8100000, 8200000}}}},
 	})
 	checkGatheredRouteSegments(T, vd, "partRoad", []gsCheck{
-		{7.1, 7.2, 6.1, 6.2, []gsPath{
-			{"three:1", false, locationPairs{6.1, 6.2, 7.1, 7.2}}}},
-		{6.1, 6.2, 2.1, 2.2, []gsPath{
-			{"two", false, locationPairs{4.1, 4.2, 5.1, 5.2, 6.1, 6.2}},
-			{"one:1", false, locationPairs{2.1, 2.2, 3.1, 3.2, 4.1, 4.2}}}},
+		{7100000, 7200000, 6100000, 6200000, []gsPath{
+			{"three:1", false, locationPairs{6100000, 6200000, 7100000, 7200000}}}},
+		{6100000, 6200000, 2100000, 2200000, []gsPath{
+			{"two", false, locationPairs{4100000, 4200000, 5100000, 5200000,
+				6100000, 6200000}},
+			{"one:1", false, locationPairs{2100000, 2200000, 3100000, 3200000,
+				4100000, 4200000}}}},
 	})
 }
 
@@ -769,22 +813,29 @@ func Test_sliceThreeSegmentRouteToTwoSegments(T *testing.T) {
 
 	vd := prepareAndParseStringsNoRouteThreading(T, sourceText)
 	checkGatheredRouteSegments(T, vd, "road", []gsCheck{
-		{1.1, 1.2, 6.1, 6.2, []gsPath{
-			{"one", true, locationPairs{1.1, 1.2, 2.1, 2.2, 3.1, 3.2, 4.1, 4.2}},
-			{"two", true, locationPairs{4.1, 4.2, 5.1, 5.2, 6.1, 6.2}}}},
-		{6.1, 6.2, 10.1, 10.2, []gsPath{
-			{"three", true, locationPairs{6.1, 6.2, 7.1, 7.2, 8.1, 8.2}},
-			{"four", true, locationPairs{8.1, 8.2, 9.1, 9.2, 10.1, 10.2}}}},
-		{10.1, 10.2, 11.1, 11.2, []gsPath{
-			{"five", true, locationPairs{10.1, 10.2, 11.1, 11.2}}}},
+		{1100000, 1200000, 6100000, 6200000, []gsPath{
+			{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000,
+				3100000, 3200000, 4100000, 4200000}},
+			{"two", true, locationPairs{4100000, 4200000, 5100000, 5200000,
+				6100000, 6200000}}}},
+		{6100000, 6200000, 10100000, 10200000, []gsPath{
+			{"three", true, locationPairs{6100000, 6200000, 7100000, 7200000,
+				8100000, 8200000}},
+			{"four", true, locationPairs{8100000, 8200000, 9100000, 9200000,
+				10100000, 10200000}}}},
+		{10100000, 10200000, 11100000, 11200000, []gsPath{
+			{"five", true, locationPairs{10100000, 10200000, 11100000, 11200000}}}},
 	})
 	checkGatheredRouteSegments(T, vd, "partRoad", []gsCheck{
-		{2.1, 2.2, 6.1, 6.2, []gsPath{
-			{"one", true, locationPairs{2.1, 2.2, 3.1, 3.2, 4.1, 4.2}},
-			{"two", true, locationPairs{4.1, 4.2, 5.1, 5.2, 6.1, 6.2}}}},
-		{6.1, 6.2, 9.1, 9.2, []gsPath{
-			{"three", true, locationPairs{6.1, 6.2, 7.1, 7.2, 8.1, 8.2}},
-			{"four", true, locationPairs{8.1, 8.2, 9.1, 9.2}}}},
+		{2100000, 2200000, 6100000, 6200000, []gsPath{
+			{"one", true, locationPairs{2100000, 2200000, 3100000, 3200000,
+				4100000, 4200000}},
+			{"two", true, locationPairs{4100000, 4200000, 5100000, 5200000,
+				6100000, 6200000}}}},
+		{6100000, 6200000, 9100000, 9200000, []gsPath{
+			{"three", true, locationPairs{6100000, 6200000, 7100000, 7200000,
+				8100000, 8200000}},
+			{"four", true, locationPairs{8100000, 8200000, 9100000, 9200000}}}},
 	})
 }
 
@@ -840,22 +891,29 @@ func Test_sliceThreeSegmentReformedRouteToTwoSegments(T *testing.T) {
 
 	vd := prepareAndParseStrings(T, sourceText)
 	checkGatheredRouteSegments(T, vd, "road", []gsCheck{
-		{1.1, 1.2, 6.1, 6.2, []gsPath{
-			{"one", true, locationPairs{1.1, 1.2, 2.1, 2.2, 3.1, 3.2, 4.1, 4.2}},
-			{"two", true, locationPairs{4.1, 4.2, 5.1, 5.2, 6.1, 6.2}}}},
-		{6.1, 6.2, 10.1, 10.2, []gsPath{
-			{"three", true, locationPairs{6.1, 6.2, 7.1, 7.2, 8.1, 8.2}},
-			{"four", true, locationPairs{8.1, 8.2, 9.1, 9.2, 10.1, 10.2}}}},
-		{10.1, 10.2, 11.1, 11.2, []gsPath{
-			{"five", true, locationPairs{10.1, 10.2, 11.1, 11.2}}}},
+		{1100000, 1200000, 6100000, 6200000, []gsPath{
+			{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000,
+				3100000, 3200000, 4100000, 4200000}},
+			{"two", true, locationPairs{4100000, 4200000, 5100000, 5200000,
+				6100000, 6200000}}}},
+		{6100000, 6200000, 10100000, 10200000, []gsPath{
+			{"three", true, locationPairs{6100000, 6200000, 7100000, 7200000,
+				8100000, 8200000}},
+			{"four", true, locationPairs{8100000, 8200000, 9100000, 9200000,
+				10100000, 10200000}}}},
+		{10100000, 10200000, 11100000, 11200000, []gsPath{
+			{"five", true, locationPairs{10100000, 10200000, 11100000, 11200000}}}},
 	})
 	checkGatheredRouteSegments(T, vd, "partRoad", []gsCheck{
-		{2.1, 2.2, 6.1, 6.2, []gsPath{
-			{"one:1", true, locationPairs{2.1, 2.2, 3.1, 3.2, 4.1, 4.2}},
-			{"two", true, locationPairs{4.1, 4.2, 5.1, 5.2, 6.1, 6.2}}}},
-		{6.1, 6.2, 9.1, 9.2, []gsPath{
-			{"three", true, locationPairs{6.1, 6.2, 7.1, 7.2, 8.1, 8.2}},
-			{"four:1", true, locationPairs{8.1, 8.2, 9.1, 9.2}}}},
+		{2100000, 2200000, 6100000, 6200000, []gsPath{
+			{"one:1", true, locationPairs{2100000, 2200000, 3100000, 3200000,
+				4100000, 4200000}},
+			{"two", true, locationPairs{4100000, 4200000, 5100000, 5200000,
+				6100000, 6200000}}}},
+		{6100000, 6200000, 9100000, 9200000, []gsPath{
+			{"three", true, locationPairs{6100000, 6200000, 7100000, 7200000,
+				8100000, 8200000}},
+			{"four:1", true, locationPairs{8100000, 8200000, 9100000, 9200000}}}},
 	})
 }
 
@@ -915,22 +973,28 @@ func Test_sliceTwoSegmentRoutePlusAdjoiningSegments(T *testing.T) {
 
 	vd := prepareAndParseStringsNoRouteThreading(T, sourceText)
 	checkGatheredRouteSegments(T, vd, "road", []gsCheck{
-		{1.1, 1.2, 6.1, 6.2, []gsPath{
-			{"one", true, locationPairs{1.1, 1.2, 2.1, 2.2, 3.1, 3.2, 4.1, 4.2}},
-			{"two", true, locationPairs{4.1, 4.2, 5.1, 5.2, 6.1, 6.2}}}},
-		{6.1, 6.2, 8.1, 8.2, []gsPath{
-			{"three", true, locationPairs{6.1, 6.2, 7.1, 7.2, 8.1, 8.2}}}},
+		{1100000, 1200000, 6100000, 6200000, []gsPath{
+			{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000,
+				3100000, 3200000, 4100000, 4200000}},
+			{"two", true, locationPairs{4100000, 4200000, 5100000, 5200000,
+				6100000, 6200000}}}},
+		{6100000, 6200000, 8100000, 8200000, []gsPath{
+			{"three", true, locationPairs{6100000, 6200000, 7100000, 7200000,
+				8100000, 8200000}}}},
 	})
 	checkGatheredRouteSegments(T, vd, "partRoad", []gsCheck{
-		{2.5, 2.6, 2.1, 2.2, []gsPath{
-			{"ps1", true, locationPairs{2.5, 2.6, 2.3, 2.4, 2.1, 2.2}}}},
-		{2.1, 2.2, 6.1, 6.2, []gsPath{
-			{"one", true, locationPairs{2.1, 2.2, 3.1, 3.2, 4.1, 4.2}},
-			{"two", true, locationPairs{4.1, 4.2, 5.1, 5.2, 6.1, 6.2}}}},
-		{6.1, 6.2, 7.1, 7.2, []gsPath{
-			{"three", true, locationPairs{6.1, 6.2, 7.1, 7.2}}}},
-		{7.1, 7.2, 7.3, 7.4, []gsPath{
-			{"ps2", true, locationPairs{7.1, 7.2, 7.3, 7.4}}}},
+		{2500000, 2600000, 2100000, 2200000, []gsPath{
+			{"ps1", true, locationPairs{2500000, 2600000, 2300000, 2400000,
+				2100000, 2200000}}}},
+		{2100000, 2200000, 6100000, 6200000, []gsPath{
+			{"one", true, locationPairs{2100000, 2200000, 3100000, 3200000,
+				4100000, 4200000}},
+			{"two", true, locationPairs{4100000, 4200000, 5100000, 5200000,
+				6100000, 6200000}}}},
+		{6100000, 6200000, 7100000, 7200000, []gsPath{
+			{"three", true, locationPairs{6100000, 6200000, 7100000, 7200000}}}},
+		{7100000, 7200000, 7300000, 7400000, []gsPath{
+			{"ps2", true, locationPairs{7100000, 7200000, 7300000, 7400000}}}},
 	})
 }
 
@@ -990,22 +1054,28 @@ func Test_sliceTwoSegmentReformedRoutePlusAdjoiningSegments(T *testing.T) {
 
 	vd := prepareAndParseStrings(T, sourceText)
 	checkGatheredRouteSegments(T, vd, "road", []gsCheck{
-		{1.1, 1.2, 6.1, 6.2, []gsPath{
-			{"one", true, locationPairs{1.1, 1.2, 2.1, 2.2, 3.1, 3.2, 4.1, 4.2}},
-			{"two", true, locationPairs{4.1, 4.2, 5.1, 5.2, 6.1, 6.2}}}},
-		{6.1, 6.2, 8.1, 8.2, []gsPath{
-			{"three", true, locationPairs{6.1, 6.2, 7.1, 7.2, 8.1, 8.2}}}},
+		{1100000, 1200000, 6100000, 6200000, []gsPath{
+			{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000,
+				3100000, 3200000, 4100000, 4200000}},
+			{"two", true, locationPairs{4100000, 4200000, 5100000, 5200000,
+				6100000, 6200000}}}},
+		{6100000, 6200000, 8100000, 8200000, []gsPath{
+			{"three", true, locationPairs{6100000, 6200000, 7100000, 7200000,
+				8100000, 8200000}}}},
 	})
 	checkGatheredRouteSegments(T, vd, "partRoad", []gsCheck{
-		{2.5, 2.6, 2.1, 2.2, []gsPath{
-			{"ps1", true, locationPairs{2.5, 2.6, 2.3, 2.4, 2.1, 2.2}}}},
-		{2.1, 2.2, 6.1, 6.2, []gsPath{
-			{"one:1", true, locationPairs{2.1, 2.2, 3.1, 3.2, 4.1, 4.2}},
-			{"two", true, locationPairs{4.1, 4.2, 5.1, 5.2, 6.1, 6.2}}}},
-		{6.1, 6.2, 7.1, 7.2, []gsPath{
-			{"three:1", true, locationPairs{6.1, 6.2, 7.1, 7.2}}}},
-		{7.1, 7.2, 7.3, 7.4, []gsPath{
-			{"ps2", true, locationPairs{7.1, 7.2, 7.3, 7.4}}}},
+		{2500000, 2600000, 2100000, 2200000, []gsPath{
+			{"ps1", true, locationPairs{2500000, 2600000, 2300000, 2400000,
+				2100000, 2200000}}}},
+		{2100000, 2200000, 6100000, 6200000, []gsPath{
+			{"one:1", true, locationPairs{2100000, 2200000, 3100000, 3200000,
+				4100000, 4200000}},
+			{"two", true, locationPairs{4100000, 4200000, 5100000, 5200000,
+				6100000, 6200000}}}},
+		{6100000, 6200000, 7100000, 7200000, []gsPath{
+			{"three:1", true, locationPairs{6100000, 6200000, 7100000, 7200000}}}},
+		{7100000, 7200000, 7300000, 7400000, []gsPath{
+			{"ps2", true, locationPairs{7100000, 7200000, 7300000, 7400000}}}},
 	})
 }
 
@@ -1065,22 +1135,28 @@ func Test_sliceTwoSegmentRoutePlusAdjoiningSegmentsFlipRoute(T *testing.T) {
 
 	vd := prepareAndParseStringsNoRouteThreading(T, sourceText)
 	checkGatheredRouteSegments(T, vd, "road", []gsCheck{
-		{1.1, 1.2, 6.1, 6.2, []gsPath{
-			{"one", true, locationPairs{1.1, 1.2, 2.1, 2.2, 3.1, 3.2, 4.1, 4.2}},
-			{"two", true, locationPairs{4.1, 4.2, 5.1, 5.2, 6.1, 6.2}}}},
-		{6.1, 6.2, 8.1, 8.2, []gsPath{
-			{"three", true, locationPairs{6.1, 6.2, 7.1, 7.2, 8.1, 8.2}}}},
+		{1100000, 1200000, 6100000, 6200000, []gsPath{
+			{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000,
+				3100000, 3200000, 4100000, 4200000}},
+			{"two", true, locationPairs{4100000, 4200000, 5100000, 5200000,
+				6100000, 6200000}}}},
+		{6100000, 6200000, 8100000, 8200000, []gsPath{
+			{"three", true, locationPairs{6100000, 6200000, 7100000, 7200000,
+				8100000, 8200000}}}},
 	})
 	checkGatheredRouteSegments(T, vd, "partRoad", []gsCheck{
-		{7.3, 7.4, 7.1, 7.2, []gsPath{
-			{"ps2", true, locationPairs{7.3, 7.4, 7.1, 7.2}}}},
-		{7.1, 7.2, 6.1, 6.2, []gsPath{
-			{"three", false, locationPairs{6.1, 6.2, 7.1, 7.2}}}},
-		{6.1, 6.2, 2.1, 2.2, []gsPath{
-			{"two", false, locationPairs{4.1, 4.2, 5.1, 5.2, 6.1, 6.2}},
-			{"one", false, locationPairs{2.1, 2.2, 3.1, 3.2, 4.1, 4.2}}}},
-		{2.1, 2.2, 2.5, 2.6, []gsPath{
-			{"ps1", true, locationPairs{2.1, 2.2, 2.3, 2.4, 2.5, 2.6}}}},
+		{7300000, 7400000, 7100000, 7200000, []gsPath{
+			{"ps2", true, locationPairs{7300000, 7400000, 7100000, 7200000}}}},
+		{7100000, 7200000, 6100000, 6200000, []gsPath{
+			{"three", false, locationPairs{6100000, 6200000, 7100000, 7200000}}}},
+		{6100000, 6200000, 2100000, 2200000, []gsPath{
+			{"two", false, locationPairs{4100000, 4200000, 5100000, 5200000,
+				6100000, 6200000}},
+			{"one", false, locationPairs{2100000, 2200000, 3100000, 3200000,
+				4100000, 4200000}}}},
+		{2100000, 2200000, 2500000, 2600000, []gsPath{
+			{"ps1", true, locationPairs{2100000, 2200000, 2300000, 2400000,
+				2500000, 2600000}}}},
 	})
 }
 
@@ -1140,22 +1216,28 @@ func Test_sliceTwoSegmentReformedRoutePlusAdjoiningSegmentsFlipRoute(T *testing.
 
 	vd := prepareAndParseStrings(T, sourceText)
 	checkGatheredRouteSegments(T, vd, "road", []gsCheck{
-		{1.1, 1.2, 6.1, 6.2, []gsPath{
-			{"one", true, locationPairs{1.1, 1.2, 2.1, 2.2, 3.1, 3.2, 4.1, 4.2}},
-			{"two", true, locationPairs{4.1, 4.2, 5.1, 5.2, 6.1, 6.2}}}},
-		{6.1, 6.2, 8.1, 8.2, []gsPath{
-			{"three", true, locationPairs{6.1, 6.2, 7.1, 7.2, 8.1, 8.2}}}},
+		{1100000, 1200000, 6100000, 6200000, []gsPath{
+			{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000,
+				3100000, 3200000, 4100000, 4200000}},
+			{"two", true, locationPairs{4100000, 4200000, 5100000, 5200000,
+				6100000, 6200000}}}},
+		{6100000, 6200000, 8100000, 8200000, []gsPath{
+			{"three", true, locationPairs{6100000, 6200000, 7100000, 7200000,
+				8100000, 8200000}}}},
 	})
 	checkGatheredRouteSegments(T, vd, "partRoad", []gsCheck{
-		{7.3, 7.4, 7.1, 7.2, []gsPath{
-			{"ps2", true, locationPairs{7.3, 7.4, 7.1, 7.2}}}},
-		{7.1, 7.2, 6.1, 6.2, []gsPath{
-			{"three:1", false, locationPairs{6.1, 6.2, 7.1, 7.2}}}},
-		{6.1, 6.2, 2.1, 2.2, []gsPath{
-			{"two", false, locationPairs{4.1, 4.2, 5.1, 5.2, 6.1, 6.2}},
-			{"one:1", false, locationPairs{2.1, 2.2, 3.1, 3.2, 4.1, 4.2}}}},
-		{2.1, 2.2, 2.5, 2.6, []gsPath{
-			{"ps1", true, locationPairs{2.1, 2.2, 2.3, 2.4, 2.5, 2.6}}}},
+		{7300000, 7400000, 7100000, 7200000, []gsPath{
+			{"ps2", true, locationPairs{7300000, 7400000, 7100000, 7200000}}}},
+		{7100000, 7200000, 6100000, 6200000, []gsPath{
+			{"three:1", false, locationPairs{6100000, 6200000, 7100000, 7200000}}}},
+		{6100000, 6200000, 2100000, 2200000, []gsPath{
+			{"two", false, locationPairs{4100000, 4200000, 5100000, 5200000,
+				6100000, 6200000}},
+			{"one:1", false, locationPairs{2100000, 2200000, 3100000, 3200000,
+				4100000, 4200000}}}},
+		{2100000, 2200000, 2500000, 2600000, []gsPath{
+			{"ps1", true, locationPairs{2100000, 2200000, 2300000, 2400000,
+				2500000, 2600000}}}},
 	})
 }
 

@@ -19,7 +19,7 @@ func (vd *VectorData) MeasurePath(segmentName string) (float64, error) {
 	for _, segment := range segs {
 		for _, path := range segment.paths {
 			points, _, _ := path.points()
-			distance += great.MetersInPath(points)
+			distance += great.MetersInPath(points.asFloatSlice())
 		}
 	}
 	return distance, nil
@@ -84,7 +84,8 @@ func (vd *VectorData) gatherSegmentsForNamedItem(name string) ([]*gatheredSegmen
 func pathDistanceUpTo(rec gatheredPath, upTo float64) (float64, float64, float64, int) {
 	var distance, prevDistance, prevLat, prevLong float64
 	var pos, posIncrement, index, indexIncrement int
-	location, baseIndex, forward := rec.points()
+	location32, baseIndex, forward := rec.points()
+	location := location32.asFloatSlice()
 	count := (len(location) >> 1) - 1
 	if forward {
 		pos, posIncrement, index, indexIncrement = 0, 2, 1, 1

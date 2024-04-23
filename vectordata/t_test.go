@@ -9,7 +9,7 @@ import "testing"
 
 
 type gsCheck struct {
-	lat1, long1, lat2, long2 float64
+	lat1, long1, lat2, long2 locAngleType
 	paths []gsPath
 }
 
@@ -64,12 +64,12 @@ func checkGatheredRouteSegments(T *testing.T, vd *VectorData, routeName string, 
 func baseSegmentCheck(T *testing.T, gathered *gatheredSegment, wantSeg gsCheck) {
 	lat, long := gathered.lat1, gathered.long1
 	if !isSamePoint(wantSeg.lat1, wantSeg.long1, lat, long) {
-		T.Fatalf("expected segment start [%f  %f], got [%f %f]", wantSeg.lat1,
+		T.Fatalf("expected segment start [%s  %s], got [%s %s]", wantSeg.lat1,
 			wantSeg.long1, lat, long)
 	}
 	lat, long = gathered.lat2, gathered.long2
 	if !isSamePoint(wantSeg.lat2, wantSeg.long2, lat, long) {
-		T.Fatalf("expected segment end [%f  %f], got [%f %f]", wantSeg.lat2,
+		T.Fatalf("expected segment end [%s  %s], got [%s %s]", wantSeg.lat2,
 			wantSeg.long2, lat, long)
 	}
 	if len(gathered.paths) != len(wantSeg.paths) {
@@ -95,7 +95,7 @@ func baseSegmentCheck(T *testing.T, gathered *gatheredSegment, wantSeg gsCheck) 
 			wantLat, wantLong := wantPath.points[i], wantPath.points[i+1]
 			gotLat, gotLong := points[i], points[i+1]
 			if !isSamePoint(wantLat, wantLong, gotLat, gotLong) {
-				T.Fatalf("path %d (%s) point %d: expected [%f %f], got [%f %f]",
+				T.Fatalf("path %d (%s) point %d: expected [%s %s], got [%s %s]",
 					pathX, wantPath.name, i >> 1, wantLat, wantLong,
 					gotLat, gotLong)
 			}
@@ -128,9 +128,9 @@ func Test_gatherSegmentTypical(T *testing.T) {
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1.1, 1.2, 5.1, 5.2, []gsPath{
-		{"one", true, locationPairs{1.1, 1.2, 2.1, 2.2, 3.1, 3.2}},
-		{"two", true, locationPairs{3.1, 3.2, 4.1, 4.2, 5.1, 5.2}},
+	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1100000, 1200000, 5100000, 5200000, []gsPath{
+		{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000, 3100000, 3200000}},
+		{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000, 5100000, 5200000}},
 	}})
 }
 
@@ -153,8 +153,8 @@ func Test_gatherSegmentSinglePath(T *testing.T) {
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1.1, 1.2, 3.1, 3.2, []gsPath{
-		{"one", true, locationPairs{1.1, 1.2, 2.1, 2.2, 3.1, 3.2}},
+	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1100000, 1200000, 3100000, 3200000, []gsPath{
+		{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000, 3100000, 3200000}},
 	}})
 }
 
@@ -178,8 +178,8 @@ func Test_gatherSegmentSinglePathWaypointBefore(T *testing.T) {
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1.1, 1.2, 3.1, 3.2, []gsPath{
-		{"one", true, locationPairs{1.1, 1.2, 2.1, 2.2, 3.1, 3.2}},
+	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1100000, 1200000, 3100000, 3200000, []gsPath{
+		{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000, 3100000, 3200000}},
 	}})
 }
 
@@ -203,8 +203,8 @@ func Test_gatherSegmentSinglePathWaypointAfter(T *testing.T) {
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1.1, 1.2, 3.1, 3.2, []gsPath{
-		{"one", true, locationPairs{1.1, 1.2, 2.1, 2.2, 3.1, 3.2}},
+	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1100000, 1200000, 3100000, 3200000, []gsPath{
+		{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000, 3100000, 3200000}},
 	}})
 }
 
@@ -229,8 +229,8 @@ func Test_gatherSegmentSinglePathWaypointBeforeMidPath(T *testing.T) {
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{2.1, 2.2, 4.1, 4.2, []gsPath{
-		{"one", true, locationPairs{2.1, 2.2, 3.1, 3.2, 4.1, 4.2}},
+	checkGatheredSegmentPaths(T, vd, "test", gsCheck{2100000, 2200000, 4100000, 4200000, []gsPath{
+		{"one", true, locationPairs{2100000, 2200000, 3100000, 3200000, 4100000, 4200000}},
 	}})
 }
 
@@ -255,8 +255,8 @@ func Test_gatherSegmentSinglePathWaypointAfterMidPath(T *testing.T) {
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1.1, 1.2, 3.1, 3.2, []gsPath{
-		{"one", true, locationPairs{1.1, 1.2, 2.1, 2.2, 3.1, 3.2}},
+	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1100000, 1200000, 3100000, 3200000, []gsPath{
+		{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000, 3100000, 3200000}},
 	}})
 }
 
@@ -282,8 +282,8 @@ func Test_gatherSegmentSinglePathWaypointBeforeAndAfterMidPath(T *testing.T) {
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{2.1, 2.2, 3.1, 3.2, []gsPath{
-		{"one", true, locationPairs{2.1, 2.2, 3.1, 3.2}},
+	checkGatheredSegmentPaths(T, vd, "test", gsCheck{2100000, 2200000, 3100000, 3200000, []gsPath{
+		{"one", true, locationPairs{2100000, 2200000, 3100000, 3200000}},
 	}})
 }
 
@@ -307,8 +307,8 @@ func Test_gatherSegmentSinglePathReversedByWaypointBefore(T *testing.T) {
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1.1, 1.2, 3.1, 3.2, []gsPath{
-		{"one", false, locationPairs{3.1, 3.2, 2.1, 2.2, 1.1, 1.2}},
+	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1100000, 1200000, 3100000, 3200000, []gsPath{
+		{"one", false, locationPairs{3100000, 3200000, 2100000, 2200000, 1100000, 1200000}},
 	}})
 }
 
@@ -332,8 +332,8 @@ func Test_gatherSegmentSinglePathReversedByWaypointAfter(T *testing.T) {
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1.1, 1.2, 3.1, 3.2, []gsPath{
-		{"one", false, locationPairs{3.1, 3.2, 2.1, 2.2, 1.1, 1.2}},
+	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1100000, 1200000, 3100000, 3200000, []gsPath{
+		{"one", false, locationPairs{3100000, 3200000, 2100000, 2200000, 1100000, 1200000}},
 	}})
 }
 
@@ -358,8 +358,8 @@ func Test_gatherSegmentSinglePathReversedByWaypointBeforeAndAfter(T *testing.T) 
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1.1, 1.2, 3.1, 3.2, []gsPath{
-		{"one", false, locationPairs{3.1, 3.2, 2.1, 2.2, 1.1, 1.2}},
+	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1100000, 1200000, 3100000, 3200000, []gsPath{
+		{"one", false, locationPairs{3100000, 3200000, 2100000, 2200000, 1100000, 1200000}},
 	}})
 }
 
@@ -384,8 +384,8 @@ func Test_gatherSegmentSinglePathReversedByWaypointBeforeAndAfterInMiddle(T *tes
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1.1, 1.2, 2.1, 2.2, []gsPath{
-		{"one", false, locationPairs{2.1, 2.2, 1.1, 1.2}},
+	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1100000, 1200000, 2100000, 2200000, []gsPath{
+		{"one", false, locationPairs{2100000, 2200000, 1100000, 1200000}},
 	}})
 }
 
@@ -412,8 +412,8 @@ func Test_gatherSegmentReversedSinglePathReversedByInteriorWaypoints(T *testing.
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{2.1, 2.2, 4.1, 4.2, []gsPath{
-		{"one", false, locationPairs{4.1, 4.2, 3.1, 3.2, 2.1, 2.2}},
+	checkGatheredSegmentPaths(T, vd, "test", gsCheck{2100000, 2200000, 4100000, 4200000, []gsPath{
+		{"one", false, locationPairs{4100000, 4200000, 3100000, 3200000, 2100000, 2200000}},
 	}})
 }
 
@@ -442,9 +442,9 @@ func Test_gatherSegmentTwoPathsWaypointBefore(T *testing.T) {
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1.1, 1.2, 5.1, 5.2, []gsPath{
-		{"one", true, locationPairs{1.1, 1.2, 2.1, 2.2, 3.1, 3.2}},
-		{"two", true, locationPairs{3.1, 3.2, 4.1, 4.2, 5.1, 5.2}},
+	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1100000, 1200000, 5100000, 5200000, []gsPath{
+		{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000, 3100000, 3200000}},
+		{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000, 5100000, 5200000}},
 	}})
 }
 
@@ -473,9 +473,9 @@ func Test_gatherSegmentTwoPathsWaypointBeforeMidPath(T *testing.T) {
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{2.1, 2.2, 5.1, 5.2, []gsPath{
-		{"one", true, locationPairs{2.1, 2.2, 3.1, 3.2}},
-		{"two", true, locationPairs{3.1, 3.2, 4.1, 4.2, 5.1, 5.2}},
+	checkGatheredSegmentPaths(T, vd, "test", gsCheck{2100000, 2200000, 5100000, 5200000, []gsPath{
+		{"one", true, locationPairs{2100000, 2200000, 3100000, 3200000}},
+		{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000, 5100000, 5200000}},
 	}})
 }
 
@@ -505,9 +505,10 @@ func Test_gatherSegmentTwoPathsWaypointMiddleMidFirstPath(T *testing.T) {
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1.1, 1.2, 5.1, 5.2, []gsPath{
-		{"one", true, locationPairs{1.1, 1.2, 2.1, 2.2}},
-		{"two", true, locationPairs{2.1, 2.2, 3.1, 3.2, 4.1, 4.2, 5.1, 5.2}},
+	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1100000, 1200000, 5100000, 5200000, []gsPath{
+		{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000}},
+		{"two", true, locationPairs{2100000, 2200000, 3100000, 3200000, 4100000, 4200000,
+			5100000, 5200000}},
 	}})
 }
 
@@ -538,9 +539,10 @@ func Test_gatherSegmentTwoPathsWaypointMiddleMidSecondPath(T *testing.T) {
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1.1, 1.2, 5.1, 5.2, []gsPath{
-		{"one", true, locationPairs{1.1, 1.2, 2.1, 2.2, 3.1, 3.2, 4.1, 4.2}},
-		{"two", true, locationPairs{4.1, 4.2, 5.1, 5.2}},
+	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1100000, 1200000, 5100000, 5200000, []gsPath{
+		{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000, 3100000, 3200000,
+			4100000, 4200000}},
+		{"two", true, locationPairs{4100000, 4200000, 5100000, 5200000}},
 	}})
 }
 
@@ -571,9 +573,9 @@ func Test_gatherSegmentTwoPathsWaypointMiddleMidBothPaths(T *testing.T) {
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1.1, 1.2, 5.1, 5.2, []gsPath{
-		{"one", true, locationPairs{1.1, 1.2, 2.1, 2.2, 3.1, 3.2}},
-		{"two", true, locationPairs{3.1, 3.2, 4.1, 4.2, 5.1, 5.2}},
+	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1100000, 1200000, 5100000, 5200000, []gsPath{
+		{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000, 3100000, 3200000}},
+		{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000, 5100000, 5200000}},
 	}})
 }
 
@@ -602,9 +604,9 @@ func Test_gatherSegmentTwoPathsWaypointEnd(T *testing.T) {
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1.1, 1.2, 5.1, 5.2, []gsPath{
-		{"one", true, locationPairs{1.1, 1.2, 2.1, 2.2, 3.1, 3.2}},
-		{"two", true, locationPairs{3.1, 3.2, 4.1, 4.2, 5.1, 5.2}},
+	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1100000, 1200000, 5100000, 5200000, []gsPath{
+		{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000, 3100000, 3200000}},
+		{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000, 5100000, 5200000}},
 	}})
 }
 
@@ -633,9 +635,9 @@ func Test_gatherSegmentTwoPathsWaypointEndMidPath(T *testing.T) {
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1.1, 1.2, 4.1, 4.2, []gsPath{
-		{"one", true, locationPairs{1.1, 1.2, 2.1, 2.2, 3.1, 3.2}},
-		{"two", true, locationPairs{3.1, 3.2, 4.1, 4.2}},
+	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1100000, 1200000, 4100000, 4200000, []gsPath{
+		{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000, 3100000, 3200000}},
+		{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000}},
 	}})
 }
 
@@ -663,9 +665,9 @@ func Test_gatherSegmentTwoPathsFlipFirstPath(T *testing.T) {
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1.1, 1.2, 5.1, 5.2, []gsPath{
-		{"one", false, locationPairs{3.1, 3.2, 2.1, 2.2, 1.1, 1.2}},
-		{"two", true, locationPairs{3.1, 3.2, 4.1, 4.2, 5.1, 5.2}},
+	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1100000, 1200000, 5100000, 5200000, []gsPath{
+		{"one", false, locationPairs{3100000, 3200000, 2100000, 2200000, 1100000, 1200000}},
+		{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000, 5100000, 5200000}},
 	}})
 }
 
@@ -693,9 +695,9 @@ func Test_gatherSegmentTwoPathsFlipSecondPath(T *testing.T) {
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1.1, 1.2, 5.1, 5.2, []gsPath{
-		{"one", true, locationPairs{1.1, 1.2, 2.1, 2.2, 3.1, 3.2}},
-		{"two", false, locationPairs{5.1, 5.2, 4.1, 4.2, 3.1, 3.2}},
+	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1100000, 1200000, 5100000, 5200000, []gsPath{
+		{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000, 3100000, 3200000}},
+		{"two", false, locationPairs{5100000, 5200000, 4100000, 4200000, 3100000, 3200000}},
 	}})
 }
 
@@ -726,9 +728,10 @@ func Test_gatherSegmentTwoPathsFlipSecondPathWaypointAmbiguitySolved(T *testing.
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1.1, 1.2, 5.1, 5.2, []gsPath{
-		{"one", true, locationPairs{1.1, 1.2, 2.1, 2.2, 3.1, 3.2, 4.1, 4.2}},
-		{"two", false, locationPairs{5.1, 5.2, 4.1, 4.2}},
+	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1100000, 1200000, 5100000, 5200000, []gsPath{
+		{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000, 3100000, 3200000,
+			4100000, 4200000}},
+		{"two", false, locationPairs{5100000, 5200000, 4100000, 4200000}},
 	}})
 }
 
@@ -759,9 +762,10 @@ func Test_gatherSegmentTwoPathsFlipSecondPathWaypointAmbiguitySolvedOtherWay(T *
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1.1, 1.2, 3.1, 3.2, []gsPath{
-		{"one", true, locationPairs{1.1, 1.2, 2.1, 2.2, 3.1, 3.2, 4.1, 4.2}},
-		{"two", true, locationPairs{4.1, 4.2, 3.1, 3.2}},
+	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1100000, 1200000, 3100000, 3200000, []gsPath{
+		{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000, 3100000, 3200000,
+			4100000, 4200000}},
+		{"two", true, locationPairs{4100000, 4200000, 3100000, 3200000}},
 	}})
 }
 
@@ -790,9 +794,9 @@ func Test_gatherSegmentTwoPathsFlippedByMiddleWaypoint(T *testing.T) {
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1.1, 1.2, 5.1, 5.2, []gsPath{
-		{"one", false, locationPairs{3.1, 3.2, 2.1, 2.2, 1.1, 1.2}},
-		{"two", false, locationPairs{5.1, 5.2, 4.1, 4.2, 3.1, 3.2}},
+	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1100000, 1200000, 5100000, 5200000, []gsPath{
+		{"one", false, locationPairs{3100000, 3200000, 2100000, 2200000, 1100000, 1200000}},
+		{"two", false, locationPairs{5100000, 5200000, 4100000, 4200000, 3100000, 3200000}},
 	}})
 }
 
@@ -825,10 +829,11 @@ func Test_gatherSegmentThreePaths(T *testing.T) {
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1.1, 1.2, 7.1, 7.2, []gsPath{
-		{"one", true, locationPairs{1.1, 1.2, 2.1, 2.2, 3.1, 3.2}},
-		{"two", true, locationPairs{3.1, 3.2, 4.1, 4.2, 5.1, 5.2}},
-		{"three", true, locationPairs{5.1, 5.2, 6.1, 6.2, 7.1, 7.2}},
+	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1100000, 1200000, 7100000, 7200000, []gsPath{
+		{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000, 3100000, 3200000}},
+		{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000, 5100000, 5200000}},
+		{"three", true, locationPairs{5100000, 5200000, 6100000, 6200000,
+			7100000, 7200000}},
 	}})
 }
 
@@ -861,10 +866,11 @@ func Test_gatherSegmentThreePathsFirstReversed(T *testing.T) {
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1.1, 1.2, 7.1, 7.2, []gsPath{
-		{"one", false, locationPairs{3.1, 3.2, 2.1, 2.2, 1.1, 1.2}},
-		{"two", true, locationPairs{3.1, 3.2, 4.1, 4.2, 5.1, 5.2}},
-		{"three", true, locationPairs{5.1, 5.2, 6.1, 6.2, 7.1, 7.2}},
+	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1100000, 1200000, 7100000, 7200000, []gsPath{
+		{"one", false, locationPairs{3100000, 3200000, 2100000, 2200000, 1100000, 1200000}},
+		{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000, 5100000, 5200000}},
+		{"three", true, locationPairs{5100000, 5200000, 6100000, 6200000,
+			7100000, 7200000}},
 	}})
 }
 
@@ -897,10 +903,11 @@ func Test_gatherSegmentThreePathsSecondReversed(T *testing.T) {
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1.1, 1.2, 7.1, 7.2, []gsPath{
-		{"one", true, locationPairs{1.1, 1.2, 2.1, 2.2, 3.1, 3.2}},
-		{"two", false, locationPairs{5.1, 5.2, 4.1, 4.2, 3.1, 3.2}},
-		{"three", true, locationPairs{5.1, 5.2, 6.1, 6.2, 7.1, 7.2}},
+	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1100000, 1200000, 7100000, 7200000, []gsPath{
+		{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000, 3100000, 3200000}},
+		{"two", false, locationPairs{5100000, 5200000, 4100000, 4200000, 3100000, 3200000}},
+		{"three", true, locationPairs{5100000, 5200000, 6100000, 6200000,
+			7100000, 7200000}},
 	}})
 }
 
@@ -933,10 +940,11 @@ func Test_gatherSegmentThreePathsThirdReversed(T *testing.T) {
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1.1, 1.2, 7.1, 7.2, []gsPath{
-		{"one", true, locationPairs{1.1, 1.2, 2.1, 2.2, 3.1, 3.2}},
-		{"two", true, locationPairs{3.1, 3.2, 4.1, 4.2, 5.1, 5.2}},
-		{"three", false, locationPairs{7.1, 7.2, 6.1, 6.2, 5.1, 5.2}},
+	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1100000, 1200000, 7100000, 7200000, []gsPath{
+		{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000, 3100000, 3200000}},
+		{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000, 5100000, 5200000}},
+		{"three", false, locationPairs{7100000, 7200000, 6100000, 6200000,
+			5100000, 5200000}},
 	}})
 }
 
@@ -982,12 +990,16 @@ func Test_gatherRouteContinuityOfSegments(T *testing.T) {
 	`
 	vd := prepareAndParseStrings(T, sourceText)
 	checkGatheredRouteSegments(T, vd, "road", []gsCheck{
-		{1.1, 1.2, 7.1, 7.2, []gsPath{
-			{"one", true, locationPairs{1.1, 1.2, 2.1, 2.2, 3.1, 3.2}},
-			{"two", true, locationPairs{3.1, 3.2, 4.1, 4.2, 5.1, 5.2}},
-			{"three", true, locationPairs{5.1, 5.2, 6.1, 6.2, 7.1, 7.2}}}},
-		{7.1, 7.2, 9.1, 9.2, []gsPath{
-			{"four", true, locationPairs{7.1, 7.2, 8.1, 8.2, 9.1, 9.2}}}},
+		{1100000, 1200000, 7100000, 7200000, []gsPath{
+			{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000,
+				3100000, 3200000}},
+			{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000,
+				5100000, 5200000}},
+			{"three", true, locationPairs{5100000, 5200000, 6100000, 6200000,
+				7100000, 7200000}}}},
+		{7100000, 7200000, 9100000, 9200000, []gsPath{
+			{"four", true, locationPairs{7100000, 7200000, 8100000, 8200000,
+				9100000, 9200000}}}},
 	})
 }
 
@@ -1028,12 +1040,16 @@ func Test_gatherRouteFirstSegmentFlipsSecondSegment(T *testing.T) {
 	`
 	vd := prepareAndParseStrings(T, sourceText)
 	checkGatheredRouteSegments(T, vd, "road", []gsCheck{
-		{1.1, 1.2, 7.1, 7.2, []gsPath{
-			{"one", true, locationPairs{1.1, 1.2, 2.1, 2.2, 3.1, 3.2}},
-			{"two", true, locationPairs{3.1, 3.2, 4.1, 4.2, 5.1, 5.2}},
-			{"three", true, locationPairs{5.1, 5.2, 6.1, 6.2, 7.1, 7.2}}}},
-		{7.1, 7.2, 9.1, 9.2, []gsPath{
-			{"four", false, locationPairs{9.1, 9.2, 8.1, 8.2, 7.1, 7.2}}}},
+		{1100000, 1200000, 7100000, 7200000, []gsPath{
+			{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000,
+				3100000, 3200000}},
+			{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000,
+				5100000, 5200000}},
+			{"three", true, locationPairs{5100000, 5200000, 6100000, 6200000,
+				7100000, 7200000}}}},
+		{7100000, 7200000, 9100000, 9200000, []gsPath{
+			{"four", false, locationPairs{9100000, 9200000, 8100000, 8200000,
+				7100000, 7200000}}}},
 	})
 }
 
@@ -1074,12 +1090,16 @@ func Test_gatherRouteSecondSegmentFlipsFirstSegment(T *testing.T) {
 	`
 	vd := prepareAndParseStrings(T, sourceText)
 	checkGatheredRouteSegments(T, vd, "road", []gsCheck{
-		{1.1, 1.2, 7.1, 7.2, []gsPath{
-			{"one", false, locationPairs{3.1, 3.2, 2.1, 2.2, 1.1, 1.2}},
-			{"two", false, locationPairs{5.1, 5.2, 4.1, 4.2, 3.1, 3.2}},
-			{"three", false, locationPairs{7.1, 7.2, 6.1, 6.2, 5.1, 5.2}}}},
-		{7.1, 7.2, 9.1, 9.2, []gsPath{
-			{"four", true, locationPairs{7.1, 7.2, 8.1, 8.2, 9.1, 9.2}}}},
+		{1100000, 1200000, 7100000, 7200000, []gsPath{
+			{"one", false, locationPairs{3100000, 3200000, 2100000, 2200000,
+				1100000, 1200000}},
+			{"two", false, locationPairs{5100000, 5200000, 4100000, 4200000,
+				3100000, 3200000}},
+			{"three", false, locationPairs{7100000, 7200000, 6100000, 6200000,
+				5100000, 5200000}}}},
+		{7100000, 7200000, 9100000, 9200000, []gsPath{
+			{"four", true, locationPairs{7100000, 7200000, 8100000, 8200000,
+				9100000, 9200000}}}},
 	})
 }
 
@@ -1120,12 +1140,16 @@ func Test_gatherRouteSecondSegmentFlipsFirstSegmentWithFlippedPath(T *testing.T)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
 	checkGatheredRouteSegments(T, vd, "road", []gsCheck{
-		{1.1, 1.2, 7.1, 7.2, []gsPath{
-			{"one", false, locationPairs{3.1, 3.2, 2.1, 2.2, 1.1, 1.2}},
-			{"two", true, locationPairs{3.1, 3.2, 4.1, 4.2, 5.1, 5.2}},
-			{"three", false, locationPairs{7.1, 7.2, 6.1, 6.2, 5.1, 5.2}}}},
-		{7.1, 7.2, 9.1, 9.2, []gsPath{
-			{"four", true, locationPairs{7.1, 7.2, 8.1, 8.2, 9.1, 9.2}}}},
+		{1100000, 1200000, 7100000, 7200000, []gsPath{
+			{"one", false, locationPairs{3100000, 3200000, 2100000, 2200000,
+				1100000, 1200000}},
+			{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000,
+				5100000, 5200000}},
+			{"three", false, locationPairs{7100000, 7200000, 6100000, 6200000,
+				5100000, 5200000}}}},
+		{7100000, 7200000, 9100000, 9200000, []gsPath{
+			{"four", true, locationPairs{7100000, 7200000, 8100000, 8200000,
+				9100000, 9200000}}}},
 	})
 }
 
@@ -1177,19 +1201,27 @@ func Test_gatherSideRouteJoiningMainRouteAtStart(T *testing.T) {
 	`
 	vd := prepareAndParseStrings(T, sourceText)
 	checkGatheredRouteSegments(T, vd, "road", []gsCheck{
-		{1.1, 1.2, 7.1, 7.2, []gsPath{
-			{"one", true, locationPairs{1.1, 1.2, 2.1, 2.2, 3.1, 3.2}},
-			{"two", true, locationPairs{3.1, 3.2, 4.1, 4.2, 5.1, 5.2}},
-			{"three", true, locationPairs{5.1, 5.2, 6.1, 6.2, 7.1, 7.2}}}},
-		{7.1, 7.2, 9.1, 9.2, []gsPath{
-			{"four", false, locationPairs{9.1, 9.2, 8.1, 8.2, 7.1, 7.2}}}},
+		{1100000, 1200000, 7100000, 7200000, []gsPath{
+			{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000,
+				3100000, 3200000}},
+			{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000,
+				5100000, 5200000}},
+			{"three", true, locationPairs{5100000, 5200000, 6100000, 6200000,
+				7100000, 7200000}}}},
+		{7100000, 7200000, 9100000, 9200000, []gsPath{
+			{"four", false, locationPairs{9100000, 9200000, 8100000, 8200000,
+				7100000, 7200000}}}},
 	})
 	checkGatheredRouteSegments(T, vd, "sideRoute", []gsCheck{
-		{1.5, 1.6, 7.1, 7.2, []gsPath{
-			{"dogleg", true, locationPairs{1.5, 1.6, 1.3, 1.4, 1.1, 1.2}},
-			{"one", true, locationPairs{1.1, 1.2, 2.1, 2.2, 3.1, 3.2}},
-			{"two", true, locationPairs{3.1, 3.2, 4.1, 4.2, 5.1, 5.2}},
-			{"three", true, locationPairs{5.1, 5.2, 6.1, 6.2, 7.1, 7.2}}}},
+		{1500000, 1600000, 7100000, 7200000, []gsPath{
+			{"dogleg", true, locationPairs{1500000, 1600000, 1300000, 1400000,
+				1100000, 1200000}},
+			{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000,
+				3100000, 3200000}},
+			{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000,
+				5100000, 5200000}},
+			{"three", true, locationPairs{5100000, 5200000, 6100000, 6200000,
+				7100000, 7200000}}}},
 	})
 }
 
@@ -1241,19 +1273,26 @@ func Test_gatherSideRouteJoiningMainRouteAtMidFirstPath(T *testing.T) {
 	`
 	vd := prepareAndParseStrings(T, sourceText)
 	checkGatheredRouteSegments(T, vd, "road", []gsCheck{
-		{1.1, 1.2, 7.1, 7.2, []gsPath{
-			{"one", true, locationPairs{1.1, 1.2, 2.1, 2.2, 3.1, 3.2}},
-			{"two", true, locationPairs{3.1, 3.2, 4.1, 4.2, 5.1, 5.2}},
-			{"three", true, locationPairs{5.1, 5.2, 6.1, 6.2, 7.1, 7.2}}}},
-		{7.1, 7.2, 9.1, 9.2, []gsPath{
-			{"four", false, locationPairs{9.1, 9.2, 8.1, 8.2, 7.1, 7.2}}}},
+		{1100000, 1200000, 7100000, 7200000, []gsPath{
+			{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000,
+				3100000, 3200000}},
+			{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000,
+				5100000, 5200000}},
+			{"three", true, locationPairs{5100000, 5200000, 6100000, 6200000,
+				7100000, 7200000}}}},
+		{7100000, 7200000, 9100000, 9200000, []gsPath{
+			{"four", false, locationPairs{9100000, 9200000, 8100000, 8200000,
+				7100000, 7200000}}}},
 	})
 	checkGatheredRouteSegments(T, vd, "sideRoute", []gsCheck{
-		{1.5, 1.6, 7.1, 7.2, []gsPath{
-			{"dogleg", true, locationPairs{1.5, 1.6, 1.3, 1.4, 2.1, 2.2}},
-			{"one:1", true, locationPairs{2.1, 2.2, 3.1, 3.2}},
-			{"two", true, locationPairs{3.1, 3.2, 4.1, 4.2, 5.1, 5.2}},
-			{"three", true, locationPairs{5.1, 5.2, 6.1, 6.2, 7.1, 7.2}}}},
+		{1500000, 1600000, 7100000, 7200000, []gsPath{
+			{"dogleg", true, locationPairs{1500000, 1600000, 1300000, 1400000,
+				2100000, 2200000}},
+			{"one:1", true, locationPairs{2100000, 2200000, 3100000, 3200000}},
+			{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000,
+				5100000, 5200000}},
+			{"three", true, locationPairs{5100000, 5200000, 6100000, 6200000,
+				7100000, 7200000}}}},
 	})
 }
 
@@ -1305,19 +1344,26 @@ func Test_gatherSideRouteJoiningMainRouteAtEndFirstPath(T *testing.T) {
 	`
 	vd := prepareAndParseStrings(T, sourceText)
 	checkGatheredRouteSegments(T, vd, "road", []gsCheck{
-		{1.1, 1.2, 7.1, 7.2, []gsPath{
-			{"one", true, locationPairs{1.1, 1.2, 2.1, 2.2, 3.1, 3.2}},
-			{"two", true, locationPairs{3.1, 3.2, 4.1, 4.2, 5.1, 5.2}},
-			{"three", true, locationPairs{5.1, 5.2, 6.1, 6.2, 7.1, 7.2}}}},
-		{7.1, 7.2, 9.1, 9.2, []gsPath{
-			{"four", false, locationPairs{9.1, 9.2, 8.1, 8.2, 7.1, 7.2}}}},
+		{1100000, 1200000, 7100000, 7200000, []gsPath{
+			{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000,
+				3100000, 3200000}},
+			{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000,
+				5100000, 5200000}},
+			{"three", true, locationPairs{5100000, 5200000, 6100000, 6200000,
+				7100000, 7200000}}}},
+		{7100000, 7200000, 9100000, 9200000, []gsPath{
+			{"four", false, locationPairs{9100000, 9200000, 8100000, 8200000,
+				7100000, 7200000}}}},
 	})
 	checkGatheredRouteSegments(T, vd, "sideRoute", []gsCheck{
-		{1.5, 1.6, 7.1, 7.2, []gsPath{
-			{"dogleg", true, locationPairs{1.5, 1.6, 1.3, 1.4, 3.1, 3.2}},
-			{"one:1", true, locationPairs{3.1, 3.2}},
-			{"two", true, locationPairs{3.1, 3.2, 4.1, 4.2, 5.1, 5.2}},
-			{"three", true, locationPairs{5.1, 5.2, 6.1, 6.2, 7.1, 7.2}}}},
+		{1500000, 1600000, 7100000, 7200000, []gsPath{
+			{"dogleg", true, locationPairs{1500000, 1600000, 1300000, 1400000,
+				3100000, 3200000}},
+			{"one:1", true, locationPairs{3100000, 3200000}},
+			{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000,
+				5100000, 5200000}},
+			{"three", true, locationPairs{5100000, 5200000, 6100000, 6200000,
+				7100000, 7200000}}}},
 	})
 }
 
@@ -1369,18 +1415,25 @@ func Test_gatherSideRouteJoiningMainRouteAtStartSecondPath(T *testing.T) {
 	`
 	vd := prepareAndParseStrings(T, sourceText)
 	checkGatheredRouteSegments(T, vd, "road", []gsCheck{
-		{1.1, 1.2, 7.1, 7.2, []gsPath{
-			{"one", true, locationPairs{1.1, 1.2, 2.1, 2.2, 3.1, 3.2}},
-			{"two", true, locationPairs{3.1, 3.2, 4.1, 4.2, 5.1, 5.2}},
-			{"three", true, locationPairs{5.1, 5.2, 6.1, 6.2, 7.1, 7.2}}}},
-		{7.1, 7.2, 9.1, 9.2, []gsPath{
-			{"four", false, locationPairs{9.1, 9.2, 8.1, 8.2, 7.1, 7.2}}}},
+		{1100000, 1200000, 7100000, 7200000, []gsPath{
+			{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000,
+				3100000, 3200000}},
+			{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000,
+				5100000, 5200000}},
+			{"three", true, locationPairs{5100000, 5200000, 6100000, 6200000,
+				7100000, 7200000}}}},
+		{7100000, 7200000, 9100000, 9200000, []gsPath{
+			{"four", false, locationPairs{9100000, 9200000, 8100000, 8200000,
+				7100000, 7200000}}}},
 	})
 	checkGatheredRouteSegments(T, vd, "sideRoute", []gsCheck{
-		{1.5, 1.6, 7.1, 7.2, []gsPath{
-			{"dogleg", true, locationPairs{1.5, 1.6, 1.3, 1.4, 3.1, 3.2}},
-			{"two", true, locationPairs{3.1, 3.2, 4.1, 4.2, 5.1, 5.2}},
-			{"three", true, locationPairs{5.1, 5.2, 6.1, 6.2, 7.1, 7.2}}}},
+		{1500000, 1600000, 7100000, 7200000, []gsPath{
+			{"dogleg", true, locationPairs{1500000, 1600000, 1300000, 1400000,
+				3100000, 3200000}},
+			{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000,
+				5100000, 5200000}},
+			{"three", true, locationPairs{5100000, 5200000, 6100000, 6200000,
+				7100000, 7200000}}}},
 	})
 }
 
@@ -1439,20 +1492,27 @@ func Test_gatherSideRouteJoiningTwoDoglegs(T *testing.T) {
 	`
 	vd := prepareAndParseStrings(T, sourceText)
 	checkGatheredRouteSegments(T, vd, "road", []gsCheck{
-		{1.1, 1.2, 7.1, 7.2, []gsPath{
-			{"one", true, locationPairs{1.1, 1.2, 2.1, 2.2, 3.1, 3.2}},
-			{"two", true, locationPairs{3.1, 3.2, 4.1, 4.2, 5.1, 5.2}},
-			{"three", true, locationPairs{5.1, 5.2, 6.1, 6.2, 7.1, 7.2}}}},
-		{7.1, 7.2, 9.1, 9.2, []gsPath{
-			{"four", false, locationPairs{9.1, 9.2, 8.1, 8.2, 7.1, 7.2}}}},
+		{1100000, 1200000, 7100000, 7200000, []gsPath{
+			{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000,
+				3100000, 3200000}},
+			{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000,
+				5100000, 5200000}},
+			{"three", true, locationPairs{5100000, 5200000, 6100000, 6200000,
+				7100000, 7200000}}}},
+		{7100000, 7200000, 9100000, 9200000, []gsPath{
+			{"four", false, locationPairs{9100000, 9200000, 8100000, 8200000,
+				7100000, 7200000}}}},
 	})
 	checkGatheredRouteSegments(T, vd, "sideRoute", []gsCheck{
-		{1.5, 1.6, 6.5, 6.6, []gsPath{
-			{"toHouse1", true, locationPairs{1.5, 1.6, 1.3, 1.4, 2.1, 2.2}},
-			{"one:1", true, locationPairs{2.1, 2.2, 3.1, 3.2}},
-			{"two", true, locationPairs{3.1, 3.2, 4.1, 4.2, 5.1, 5.2}},
-			{"three:1", true, locationPairs{5.1, 5.2, 6.1, 6.2}},
-			{"toHouse2", true, locationPairs{6.1, 6.2, 6.3, 6.4, 6.5, 6.6}}}},
+		{1500000, 1600000, 6500000, 6600000, []gsPath{
+			{"toHouse1", true, locationPairs{1500000, 1600000, 1300000, 1400000,
+				2100000, 2200000}},
+			{"one:1", true, locationPairs{2100000, 2200000, 3100000, 3200000}},
+			{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000,
+				5100000, 5200000}},
+			{"three:1", true, locationPairs{5100000, 5200000, 6100000, 6200000}},
+			{"toHouse2", true, locationPairs{6100000, 6200000, 6300000, 6400000,
+				6500000, 6600000}}}},
 	})
 }
 
@@ -1511,20 +1571,27 @@ func Test_gatherSideRouteJoiningTwoDoglegsReversedMainPath(T *testing.T) {
 	`
 	vd := prepareAndParseStrings(T, sourceText)
 	checkGatheredRouteSegments(T, vd, "road", []gsCheck{
-		{1.1, 1.2, 7.1, 7.2, []gsPath{
-			{"one", false, locationPairs{3.1, 3.2, 2.1, 2.2, 1.1, 1.2}},
-			{"two", true, locationPairs{3.1, 3.2, 4.1, 4.2, 5.1, 5.2}},
-			{"three", true, locationPairs{5.1, 5.2, 6.1, 6.2, 7.1, 7.2}}}},
-		{7.1, 7.2, 9.1, 9.2, []gsPath{
-			{"four", false, locationPairs{9.1, 9.2, 8.1, 8.2, 7.1, 7.2}}}},
+		{1100000, 1200000, 7100000, 7200000, []gsPath{
+			{"one", false, locationPairs{3100000, 3200000, 2100000, 2200000,
+				1100000, 1200000}},
+			{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000,
+				5100000, 5200000}},
+			{"three", true, locationPairs{5100000, 5200000, 6100000, 6200000,
+				7100000, 7200000}}}},
+		{7100000, 7200000, 9100000, 9200000, []gsPath{
+			{"four", false, locationPairs{9100000, 9200000, 8100000, 8200000,
+				7100000, 7200000}}}},
 	})
 	checkGatheredRouteSegments(T, vd, "sideRoute", []gsCheck{
-		{1.5, 1.6, 6.5, 6.6, []gsPath{
-			{"toHouse1", true, locationPairs{1.5, 1.6, 1.3, 1.4, 2.1, 2.2}},
-			{"one:1", false, locationPairs{3.1, 3.2, 2.1, 2.2}},
-			{"two", true, locationPairs{3.1, 3.2, 4.1, 4.2, 5.1, 5.2}},
-			{"three:1", true, locationPairs{5.1, 5.2, 6.1, 6.2}},
-			{"toHouse2", true, locationPairs{6.1, 6.2, 6.3, 6.4, 6.5, 6.6}}}},
+		{1500000, 1600000, 6500000, 6600000, []gsPath{
+			{"toHouse1", true, locationPairs{1500000, 1600000, 1300000, 1400000,
+				2100000, 2200000}},
+			{"one:1", false, locationPairs{3100000, 3200000, 2100000, 2200000}},
+			{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000,
+				5100000, 5200000}},
+			{"three:1", true, locationPairs{5100000, 5200000, 6100000, 6200000}},
+			{"toHouse2", true, locationPairs{6100000, 6200000, 6300000, 6400000,
+				6500000, 6600000}}}},
 	})
 }
 

@@ -9,7 +9,7 @@ type gatheredSegments []*gatheredSegment
 type gatheredSegment struct {
 	obj mapItemType
 	paths []gatheredPath
-	lat1, long1, lat2, long2 float64
+	lat1, long1, lat2, long2 locAngleType
 	splitSegment bool
 }
 
@@ -40,7 +40,7 @@ func (seg *mapSegmentType) threadPaths() (*gatheredSegment, error) {
 		}
 	}
 	paths := make([]gatheredPath, 0, len(allPaths))
-	var startLat, startLong, nextLat, nextLong float64
+	var startLat, startLong, nextLat, nextLong locAngleType
 	var pendingPath *pendingPathType
 	var waypoint *map_locationType
 	var started bool
@@ -159,7 +159,7 @@ func (segs gatheredSegments) reverse() {
 	}
 }
 
-func (segs gatheredSegments) findPointOffset(lat, long float64) (int, int, int) {
+func (segs gatheredSegments) findPointOffset(lat, long locAngleType) (int, int, int) {
 	for segX, seg := range segs {
 		for pathX, path := range seg.paths {
 			pointX := path.path.location.indexOfPoint(lat, long)
@@ -197,7 +197,7 @@ func newPendingPath(path *map_locationType, waypointBefore *map_locationType) *p
 	return &pendingPathType{path, -1, -1, waypointBefore, nil}
 }
 
-func (pp *pendingPathType) setStartpoint(lat, long float64) bool {
+func (pp *pendingPathType) setStartpoint(lat, long locAngleType) bool {
 	loc := pp.path.location
 	pp.startPoint = loc.indexOfPoint(lat, long)
 	if pp.startPoint == len(loc)-2 && pp.endPoint < 0 {
@@ -210,7 +210,7 @@ func (pp *pendingPathType) setStartpoint(lat, long float64) bool {
 	return pp.startPoint >= 0
 }
 
-func (pp *pendingPathType) setEndpoint(lat, long float64) bool {
+func (pp *pendingPathType) setEndpoint(lat, long locAngleType) bool {
 	pp.endPoint = pp.path.location.indexOfPoint(lat, long)
 	if pp.endPoint == 0 && pp.startPoint < 0 {
 		//Corresponding special case for direction-flipping waypoint at end of segment
@@ -239,7 +239,7 @@ func (pp *pendingPathType) sendEndpointToNextPath(path *map_locationType) bool {
 	return false
 }
 
-func (pp *pendingPathType) getStartpoint() (float64, float64) {
+func (pp *pendingPathType) getStartpoint() (locAngleType, locAngleType) {
 	loc := pp.path.location
 	var startPoint int
 	if pp.startPoint >= 0 {
@@ -248,7 +248,7 @@ func (pp *pendingPathType) getStartpoint() (float64, float64) {
 	return loc[startPoint], loc[startPoint + 1]
 }
 
-func (pp *pendingPathType) getEndpoint() (float64, float64) {
+func (pp *pendingPathType) getEndpoint() (locAngleType, locAngleType) {
 	loc := pp.path.location
 	var endPoint int
 	if pp.endPoint < 0 {
@@ -316,7 +316,7 @@ func (route *mapRouteType) threadSegments() (gatheredSegments, error) {
 			// Ignore other object types in routes: they don't affect route length
 		}
 	}
-	var nextLat, nextLong float64
+	var nextLat, nextLong locAngleType
 	for segX, seg := range segments {
 		if segX > 0 {
 			var ok, reverse bool

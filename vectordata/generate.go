@@ -151,6 +151,8 @@ func generateJsObject(args ...any) string {
 			str = strconv.Itoa(v)
 		case float64:
 			str = strconv.FormatFloat(v, 'f', 6, 64)
+		case locAngleType:
+			str = v.String()
 		case string:
 			str = strconv.Quote(v)
 		case nonEmptyString:

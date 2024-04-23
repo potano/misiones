@@ -112,7 +112,7 @@ func describeAttestation(lines *[]string, pad string, attestation *mapAttestatio
 func describeLocation(lines *[]string, pad string, location locationPairs) {
 	label := "location: "
 	for i := 0; i < len(location); i += 2 {
-		*lines = append(*lines, fmt.Sprintf("%s%-10s%.6f  %.6f", pad, label, location[i],
+		*lines = append(*lines, fmt.Sprintf("%s%-10s%s  %s", pad, label, location[i],
 			location[i+1]))
 		label = ""
 	}
