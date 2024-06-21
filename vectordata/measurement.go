@@ -9,113 +9,150 @@ import (
 	"potano.misiones/great"
 )
 
+type measurementWalker interface {
+	measurePath(path *map_locationType, startOffset, endOffset locationIndexType) bool
+}
 
-func (vd *VectorData) MeasurePath(segmentName string) (float64, error) {
-	segs, err := vd.gatherSegmentsForNamedItem(segmentName)
+
+
+func (vd *VectorData) MeasurePath(itemName string) (float64, error) {
+	measurer := &simplePathMeasurer{}
+	err := vd.walkPathsForNamedItem(measurer, itemName, false)
 	if err != nil {
 		return 0, err
 	}
-	var distance float64
-	for _, segment := range segs {
-		for _, path := range segment.paths {
-			points, _, _ := path.points()
-			distance += great.MetersInPath(points.asFloatSlice())
-		}
-	}
-	return distance, nil
+	return measurer.meters, nil
+}
+
+type simplePathMeasurer struct {
+	meters float64
+}
+
+func (spm *simplePathMeasurer) measurePath(path *map_locationType,
+		startOffset, endOffset locationIndexType) bool {
+	spm.meters += great.MetersInPath(path.location.asFloatSlice())
+	return true
 }
 
 
-func (vd *VectorData) MeasurePathUpTo(segmentName string, upToDistance float64) (foundLat float64,
+func (vd *VectorData) MeasurePathUpTo(itemName string, upToDistance float64) (foundLat float64,
 		foundLong float64, distance float64, pathName string, index int, err error) {
-	segs, err := vd.gatherSegmentsForNamedItem(segmentName)
+	measurer := &upToDistanceMeasurer{upToDistance: upToDistance, index: -1}
+	err = vd.walkPathsForNamedItem(measurer, itemName, false)
 	if err != nil {
+		index = -1
 		return
 	}
-	for _, segment := range segs {
-		for _, rec := range segment.paths {
-			pathDistance := upToDistance - distance
-			pathDistance, foundLat, foundLong, index =
-				pathDistanceUpTo(rec, pathDistance)
-			distance += pathDistance
-			if index > -1 {
-				pathName = rec.path.Name()
-				return
-			}
-		}
+	foundLat, foundLong = measurer.lat, measurer.long
+	distance, pathName, index = measurer.distance, measurer.pathName, measurer.index
+	if index < 0 {
+		item := vd.mapItems[itemName]
+		err = fmt.Errorf("%s '%s' is only %.1f meters (%.2f miles) long",
+			item.ItemTypeString(), item.Name(), distance,
+			distance / great.METERS_PER_MILE)
 	}
-	item := vd.mapItems[segmentName]
-	err = fmt.Errorf("%s '%s' is only %.1f meters (%.2f miles) long",
-		typeMapToName[item.ItemType()], item.Name(), distance,
-		distance / great.METERS_PER_MILE)
 	return
 }
 
+type upToDistanceMeasurer struct {
+	lat, long, upToDistance, distance float64
+	pathName string
+	index int
+}
 
-
-func (vd *VectorData) gatherSegmentsForNamedItem(name string) ([]*gatheredSegment, error) {
-	item, exists := vd.mapItems[name]
-	if !exists {
-		return nil, fmt.Errorf("unknown map item '%s'", name)
+func (updm *upToDistanceMeasurer) measurePath(path *map_locationType,
+		startOffset, endOffset locationIndexType) bool {
+	reverse := endOffset < startOffset
+	var pairs []float64
+	if reverse {
+		pairs = path.location.asReverseFloatSlice()
+	} else {
+		pairs = path.location.asFloatSlice()
 	}
-	var segments []*gatheredSegment
-	var segment *gatheredSegment
-	var err error
-	switch item := item.(type) {
-	case *map_locationType:
-		if item.itemType != mitPath {
-			return nil, item.Error("%s is not a path", name)
+	steps := great.MetersBetweenPointPairs(pairs)
+	distance := updm.distance
+	for index, step := range steps {
+		if distance + step >= updm.upToDistance {
+			diff1 := distance + step - updm.upToDistance
+			diff2 := updm.upToDistance - distance
+			if diff1 < diff2 {
+				index++
+				distance += step
+			}
+			updm.lat = pairs[index*2]
+			updm.long = pairs[index*2 + 1]
+			updm.distance = distance
+			updm.pathName = path.Name()
+			if reverse {
+				updm.index = len(steps) - index
+			} else {
+				updm.index = index
+			}
+			return false
 		}
-		segment = item.pathAsGatheredSegment()
-	case *mapSegmentType:
-		segment, err = item.threadPaths()
-	case *mapRouteType:
-		segments, err = item.threadSegments()
-	default:
-		return nil, item.Error("%s is not a path, segment, or route", name)
+		distance += step
 	}
-	if segment != nil {
-		segments = []*gatheredSegment{segment}
-	}
-	return segments, err
+	updm.distance = distance
+	return true
 }
 
 
-func pathDistanceUpTo(rec gatheredPath, upTo float64) (float64, float64, float64, int) {
-	var distance, prevDistance, prevLat, prevLong float64
-	var pos, posIncrement, index, indexIncrement int
-	location32, baseIndex, forward := rec.points()
-	location := location32.asFloatSlice()
-	count := (len(location) >> 1) - 1
-	if forward {
-		pos, posIncrement, index, indexIncrement = 0, 2, 1, 1
+
+
+
+func (vd *VectorData) walkPathsForNamedItem(walker measurementWalker, name string,
+		reverse bool) error {
+	item, exists := vd.mapItems[name]
+	if !exists {
+		return fmt.Errorf("unknown map item '%s'", name)
+	}
+	var align, endpoint latlongType
+	var startOffset, endOffset locationIndexType
+	if tItem, is := item.(threadableMapItemType); !is {
+		return fmt.Errorf("%s %s is not a threadable type", item.ItemTypeString(),
+			item.Name())
 	} else {
-		pos, posIncrement, index, indexIncrement = len(location) - 2, -2, count - 1, -1
+		align, endpoint, startOffset, endOffset = tItem.endpointsAndOffsets()
 	}
-	prevLat, prevLong = location[pos], location[pos+1]
-	prevLat *= great.DEG_TO_RADIANS
-	prevLong *= great.DEG_TO_RADIANS
-	for count > 0 {
-		count--
-		pos += posIncrement
-		lat := location[pos] * great.DEG_TO_RADIANS
-		long := location[pos+1] * great.DEG_TO_RADIANS
-		meters := great.MetersBetweenPoints(prevLat, prevLong, lat, long)
-		distance += meters
-		if distance > upTo {
-			diff1 := distance - upTo
-			diff2 := upTo - prevDistance
-			if diff2 < diff1 {
-				pos -= posIncrement
-				index -= indexIncrement
-				distance = prevDistance
+	if reverse {
+		align = endpoint
+		startOffset, endOffset = endOffset, startOffset
+	}
+	switch tItem := item.(type) {
+	case *map_locationType:
+		walker.measurePath(tItem, startOffset, endOffset)
+	case *mapRouteOrSegmentType:
+		walkRouteOrSegment(walker, tItem, align, startOffset, endOffset)
+	}
+	return nil
+}
+
+func walkRouteOrSegment(walker measurementWalker, item *mapRouteOrSegmentType, align latlongType,
+		pos, endOffset locationIndexType) bool {
+	children := item.routeComponents()
+	increment := locationIndexType(1)
+	if endOffset < pos {
+		increment = -1
+	}
+	for {
+		child := children[pos].(threadableMapItemType)
+		oppositeEndpoint, oppositeOffset, nearOffset := child.oppositeEndpoint(align)
+		switch tChild := child.(type) {
+		case *map_locationType:
+			if !walker.measurePath(tChild, nearOffset, oppositeOffset) {
+				return false
 			}
-			return distance, location[pos], location[pos+1], index + baseIndex
+		case *mapRouteOrSegmentType:
+			if !walkRouteOrSegment(walker, tChild, align, nearOffset, oppositeOffset) {
+				return false
+			}
 		}
-		index += indexIncrement
-		prevLat, prevLong = lat, long
-		prevDistance = distance
+		if pos == endOffset {
+			break
+		}
+		align = oppositeEndpoint
+		pos += increment
 	}
-	return distance, 0, 0, -1
+	return true
 }
 

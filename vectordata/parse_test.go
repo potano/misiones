@@ -45,6 +45,44 @@ func prepareAndParseExpectingError(T *testing.T, streams []io.Reader, errmsg str
 
 func prepareAndParseStrings(T *testing.T, sourceList ...string) *VectorData {
 	T.Helper()
+	vd, err := prepareAndParseStringsReturningError(T, sourceList, true)
+	if err != nil {
+		T.Fatal(err.Error())
+	}
+	return vd
+}
+
+func prepareAndParseStringsIgnoreThreadingError(T *testing.T, sourceList ...string) *VectorData {
+	T.Helper()
+	vd, err := prepareAndParseStringsReturningError(T, sourceList, false)
+	if err != nil {
+		T.Fatal(err.Error())
+	}
+	return vd
+}
+
+func prepareAndParseStringsExpectingError(T *testing.T, errmsg string, sourceList ...string) {
+	T.Helper()
+	_, err := prepareAndParseStringsReturningError(T, sourceList, true)
+	if err == nil {
+		T.Fatalf("Expected error %s", errmsg)
+	} else if err.Error() != errmsg {
+		T.Fatalf("Expected error %s, got %s", errmsg, err)
+	}
+}
+
+func prepareAndParseStringsOnly(T *testing.T, sourceList ...string) *VectorData {
+	T.Helper()
+	streams := make([]io.Reader, len(sourceList))
+	for i, str := range sourceList {
+		streams[i] = strings.NewReader(str)
+	}
+	return prepareAndParse(T, streams)
+}
+
+func prepareAndParseStringsReturningError(T *testing.T, sourceList []string,
+		includeDeferredThreadingErrors bool) (*VectorData, error) {
+	T.Helper()
 	streams := make([]io.Reader, len(sourceList))
 	for i, str := range sourceList {
 		streams[i] = strings.NewReader(str)
@@ -52,18 +90,20 @@ func prepareAndParseStrings(T *testing.T, sourceList ...string) *VectorData {
 	vd := prepareAndParse(T, streams)
 	err := vd.CheckAndReformRoutes()
 	if err != nil {
-		T.Fatalf("error reforming routes: %s", err)
+		return nil, fmt.Errorf("error reforming routes: %s", err)
 	}
-	return vd
-}
-
-func prepareAndParseStringsNoRouteThreading(T *testing.T, sourceList ...string) *VectorData {
-	T.Helper()
-	streams := make([]io.Reader, len(sourceList))
-	for i, str := range sourceList {
-		streams[i] = strings.NewReader(str)
+	if includeDeferredThreadingErrors {
+		errs := vd.DeferredErrors()
+		if len(errs) > 0 {
+			elist := make([]string, len(errs))
+			for i, err := range errs {
+				elist[i] = err.Error()
+			}
+			return vd, fmt.Errorf("deferred threading errors:\n%s",
+				strings.Join(elist, "\n"))
+		}
 	}
-	return prepareAndParse(T, streams)
+	return vd, nil
 }
 
 func basePrepareAndParse(T *testing.T, streams []io.Reader, notePhase bool) (*VectorData, error) {
@@ -96,6 +136,7 @@ func basePrepareAndParse(T *testing.T, streams []io.Reader, notePhase bool) (*Ve
 }
 
 func checkParse(T *testing.T, vd *VectorData, blob string) {
+	T.Helper()
 	got := vd.DescribeNodes("  ")
 	if got != blob {
 		wantLines := strings.Split(blob, "\n")

@@ -18,6 +18,8 @@ type VectorData struct {
 	styler *styler
 	attester *attester
 	lengthUnits map[string]float64
+	crossingFinder *crossingFinderType
+	deferredErrors []error
 	routesToMeasure []*mapLengthRangeType
 }
 
@@ -25,6 +27,7 @@ type mapItemType interface {
 	Name() string
 	Source() sexp.ValueSource
 	ItemType() int
+	ItemTypeString() string
 	noteReferrer(string, mapItemType) error
 	Referrers() []string
 	addScalars(targetName string, scalars []sexp.LispScalar) error
@@ -38,7 +41,6 @@ type mapItemType interface {
 	setConfigurationItem(item mapItemType) error
 	styleAndAttestation() (*mapStyleType, *mapAttestationType)
 	Error(msg string, args ...any) error
-	generateJs() string
 }
 
 
@@ -46,6 +48,7 @@ func NewVectorData() *VectorData {
 	return &VectorData{
 		mapItems: map[string]mapItemType{},
 		lengthUnits: initialLengthUnitMap(),
+		crossingFinder: newCrossingFinder(),
 	}
 }
 
@@ -71,6 +74,8 @@ func (vd *VectorData) ResolveReferences() error {
 			return err
 		}
 	}
+	vd.crossingFinder.signalNoMoreInput()
+
 	// The parser constructs a DAG from the root element plus zero or more disconnected
 	// segments that are also acyclic.  The target-resolution step above aims to join the
 	// disconnected segments into the main graph but cannot account for two pathologies:
@@ -80,14 +85,14 @@ func (vd *VectorData) ResolveReferences() error {
 	// The cycle-detection analysis starts by identifying the leaf nodes and through
 	// successive iterations finds all the nodes which are either leaf nodes or point to
 	// nodes which end only at leaf nodes.  Iterations continue until all the nodes in
-	// the graph are considered safe or until an interation fails to include any new
+	// the graph are considered safe or until an iteration fails to include any new
 	// nodes.  The function reports the graph as containing a cycle if an iteration fails
 	// to add any nodes to the safe set.
 	childNodesForNode := map[string][]string{}
 	for name, node := range vd.mapItems {
 		if len(name) > 0 && name[0] != '$' && len(node.Referrers()) == 0 {
 			return node.Error("%s '%s' is an orphan",
-				typeMapToName[node.ItemType()], node.Name())
+				node.ItemTypeString(), node.Name())
 		}
 		for _, referrer := range node.Referrers() {
 			if list, exists := childNodesForNode[referrer]; exists {
@@ -176,15 +181,29 @@ func (vd *VectorData) CheckInStylesAndAttestations() error {
 
 
 func (vd *VectorData) CheckAndReformRoutes() error {
+	allCrosspoints := vd.crossingFinder.getAllCrosspoints()
 	for _, name := range vd.inDependencyOrder {
 		obj := vd.mapItems[name]
-		if route, is := obj.(*mapRouteType); is {
-			err := route.checkAndReformSegments(vd)
-			if err != nil {
-				return err
-			}
+		var err error
+		switch obj := obj.(type) {
+		case *map_locationType:
+			obj.setCrossings(allCrosspoints[obj.locIndex])
+		case *mapRouteOrSegmentType:
+			err = vd.threadRouteOrSegment(obj)
+		}
+		if err != nil {
+			return err
 		}
 	}
 	return nil
+}
+
+
+func (vd *VectorData) recordDeferredError(err error) {
+	vd.deferredErrors = append(vd.deferredErrors, err)
+}
+
+func (vd *VectorData) DeferredErrors() []error {
+	return vd.deferredErrors
 }
 

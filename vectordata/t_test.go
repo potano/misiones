@@ -8,102 +8,6 @@ import "testing"
 // Path-threading tests
 
 
-type gsCheck struct {
-	lat1, long1, lat2, long2 locAngleType
-	paths []gsPath
-}
-
-type gsPath struct {
-	name string
-	forward bool
-	points locationPairs
-}
-
-func checkGatheredSegmentPaths(T *testing.T, vd *VectorData, segName string, wantSeg gsCheck) {
-	T.Helper()
-	item, exists := vd.mapItems[segName]
-	if !exists {
-		T.Fatal("Can't find segment " + segName)
-	}
-	seg, is := item.(*mapSegmentType)
-	if !is {
-		T.Fatalf("%s is not a segment", segName)
-	}
-	gathered, err := seg.threadPaths()
-	if err != nil {
-		T.Fatalf("error processing %s: %s", segName, err)
-	}
-	if gathered.obj.Name() != segName {
-		T.Fatalf("expected segment name %s, got %s", segName, gathered.obj.Name())
-	}
-	baseSegmentCheck(T, gathered, wantSeg)
-}
-
-func checkGatheredRouteSegments(T *testing.T, vd *VectorData, routeName string, want []gsCheck) {
-	T.Helper()
-	item, exists := vd.mapItems[routeName]
-	if !exists {
-		T.Fatal("Can't find route " + routeName)
-	}
-	route, is := item.(*mapRouteType)
-	if !is {
-		T.Fatalf("%s is not a route", routeName)
-	}
-	gSegments, err := route.threadSegments()
-	if err != nil {
-		T.Fatalf("error processing %s: %s", routeName, err)
-	}
-	if len(gSegments) != len(want) {
-		T.Fatalf("expected %d segments, got %d", len(want), len(gSegments))
-	}
-	for segX, gs := range gSegments {
-		baseSegmentCheck(T, gs, want[segX])
-	}
-}
-
-func baseSegmentCheck(T *testing.T, gathered *gatheredSegment, wantSeg gsCheck) {
-	lat, long := gathered.lat1, gathered.long1
-	if !isSamePoint(wantSeg.lat1, wantSeg.long1, lat, long) {
-		T.Fatalf("expected segment start [%s  %s], got [%s %s]", wantSeg.lat1,
-			wantSeg.long1, lat, long)
-	}
-	lat, long = gathered.lat2, gathered.long2
-	if !isSamePoint(wantSeg.lat2, wantSeg.long2, lat, long) {
-		T.Fatalf("expected segment end [%s  %s], got [%s %s]", wantSeg.lat2,
-			wantSeg.long2, lat, long)
-	}
-	if len(gathered.paths) != len(wantSeg.paths) {
-		T.Fatalf("expected %d paths in segment, got %d", len(wantSeg.paths),
-			len(gathered.paths))
-	}
-	for pathX, wantPath := range wantSeg.paths {
-		gotPath := gathered.paths[pathX]
-		if gotPath.path.Name() != wantPath.name {
-			T.Fatalf("path %d: expected name '%s', got '%s'", pathX, wantPath.name,
-				gotPath.path.Name())
-		}
-		points, _, forward := gotPath.points()
-		if forward != wantPath.forward {
-			T.Fatalf("path %d (%s): expected forward=%t, got %t", pathX, wantPath.name,
-				wantPath.forward, forward)
-		}
-		if len(points) != len(wantPath.points) {
-			T.Fatalf("path %d (%s): expected %d point values, got %d", pathX,
-				wantPath.name, len(wantPath.points), len(points))
-		}
-		for i := 0; i < len(wantPath.points); i += 2 {
-			wantLat, wantLong := wantPath.points[i], wantPath.points[i+1]
-			gotLat, gotLong := points[i], points[i+1]
-			if !isSamePoint(wantLat, wantLong, gotLat, gotLong) {
-				T.Fatalf("path %d (%s) point %d: expected [%s %s], got [%s %s]",
-					pathX, wantPath.name, i >> 1, wantLat, wantLong,
-					gotLat, gotLong)
-			}
-		}
-	}
-}
-
-
 
 func Test_gatherSegmentTypical(T *testing.T) {
 	sourceText := `(layers
@@ -128,9 +32,19 @@ func Test_gatherSegmentTypical(T *testing.T) {
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1100000, 1200000, 5100000, 5200000, []gsPath{
-		{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000, 3100000, 3200000}},
-		{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000, 5100000, 5200000}},
+	checkThreadableMapItem(T, vd.mapItems["test"],
+	miThreadCheck{mitSegment, "test", latlongType{1100000, 1200000},
+	latlongType{5100000, 5200000}, 0, 1, []latlongRefProto{{1100000, 1200000, 0, 0, 0},
+	{3100000, 3200000, 0, 4, 0},{3100000, 3200000, 1, 0, 0},{5100000, 5200000, 1, 4, 0}},
+	[]any{
+		miThreadCheck{mitPath, "one", latlongType{1100000, 1200000},
+			latlongType{3100000, 3200000}, 0, 4, []latlongRefProto{
+				{1100000, 1200000, 0, 0, 0}, {3100000, 3200000, 4, 0, 0}},
+			[]any{1100000, 1200000, 2100000, 2200000, 3100000, 3200000}},
+		miThreadCheck{mitPath, "two", latlongType{3100000, 3200000},
+			latlongType{5100000, 5200000}, 0, 4, []latlongRefProto{
+				{3100000, 3200000, 0, 0, 0},{5100000, 5200000, 4, 0, 0}},
+			[]any{3100000, 3200000, 4100000, 4200000, 5100000, 5200000}},
 	}})
 }
 
@@ -153,8 +67,14 @@ func Test_gatherSegmentSinglePath(T *testing.T) {
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1100000, 1200000, 3100000, 3200000, []gsPath{
-		{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000, 3100000, 3200000}},
+	checkThreadableMapItem(T, vd.mapItems["test"],
+	miThreadCheck{mitSegment, "test", latlongType{1100000, 1200000},
+	latlongType{3100000, 3200000}, 0, 0, []latlongRefProto{
+	{1100000, 1200000, 0, 0, 0},{3100000, 3200000, 0, 4, 0}}, []any{
+		miThreadCheck{mitPath, "one", latlongType{1100000, 1200000},
+			latlongType{3100000, 3200000}, 0, 4, []latlongRefProto{
+			{1100000, 1200000, 0, 0, 0},{3100000, 3200000, 4, 0, 0}},
+			[]any{1100000, 1200000, 2100000, 2200000, 3100000, 3200000}},
 	}})
 }
 
@@ -178,8 +98,18 @@ func Test_gatherSegmentSinglePathWaypointBefore(T *testing.T) {
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1100000, 1200000, 3100000, 3200000, []gsPath{
-		{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000, 3100000, 3200000}},
+	checkThreadableMapItem(T, vd.mapItems["test"],
+	miThreadCheck{mitSegment, "test", latlongType{1100000, 1200000},
+	latlongType{3100000, 3200000}, 0, 1, []latlongRefProto{
+	{1100000, 1200000, 0, 0, 0},{1100000, 1200000, 1, 0, 0},{3100000, 3200000, 1, 4, 0}},
+	[]any{
+		miThreadCheck{mitPoint, "wp", latlongType{1100000, 1200000},
+			latlongType{1100000, 1200000}, 0, 0, []latlongRefProto{
+			{1100000, 1200000, 0, 0, 0}}, []any{1100000, 1200000}},
+		miThreadCheck{mitPath, "one", latlongType{1100000, 1200000},
+			latlongType{3100000, 3200000}, 0, 4, []latlongRefProto{
+			{1100000, 1200000, 0, 0, 0},{3100000, 3200000, 4, 0, 0}},
+			[]any{1100000, 1200000, 2100000, 2200000, 3100000, 3200000}},
 	}})
 }
 
@@ -203,13 +133,27 @@ func Test_gatherSegmentSinglePathWaypointAfter(T *testing.T) {
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1100000, 1200000, 3100000, 3200000, []gsPath{
-		{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000, 3100000, 3200000}},
+	checkThreadableMapItem(T, vd.mapItems["test"],
+	miThreadCheck{mitSegment, "test", latlongType{1100000, 1200000},
+	latlongType{3100000, 3200000}, 0, 1, []latlongRefProto{
+	{1100000, 1200000, 0, 0, 0},{3100000, 3200000, 0, 4, 0},{3100000, 3200000, 1, 0, 0}},
+	[]any{
+		miThreadCheck{mitPath, "one", latlongType{1100000, 1200000},
+			latlongType{3100000, 3200000}, 0, 4, []latlongRefProto{
+			{1100000, 1200000, 0, 0, 0},{3100000, 3200000, 4, 0, 0}},
+			[]any{1100000, 1200000, 2100000, 2200000, 3100000, 3200000}},
+		miThreadCheck{mitPoint, "wp", latlongType{3100000, 3200000},
+			latlongType{3100000, 3200000}, 0, 0, []latlongRefProto{
+			{3100000, 3200000, 0, 0, 0}}, []any{3100000, 3200000}},
 	}})
 }
 
 
-func Test_gatherSegmentSinglePathWaypointBeforeMidPath(T *testing.T) {
+func Test_illegalGatherSegmentSinglePathWaypointBeforeMidPath(T *testing.T) {
+	//This construction was legal under the older threading system which assumed the
+	//lexical direction of a path implied its endpoints.  Placing a waypoint before
+	//a path in this way still sets one end of the following path, but now this
+	//leaves the threading mechanism unable to resolve which endpoint to use.
 	sourceText := `(layers
 		(layer ll
 			(menuitem "here")
@@ -228,14 +172,27 @@ func Test_gatherSegmentSinglePathWaypointBeforeMidPath(T *testing.T) {
 		)
 	)
 	`
-	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{2100000, 2200000, 4100000, 4200000, []gsPath{
-		{"one", true, locationPairs{2100000, 2200000, 3100000, 3200000, 4100000, 4200000}},
+	vd := prepareAndParseStringsIgnoreThreadingError(T, sourceText)
+	checkDeferredErrors(T, vd,
+		"infile0:10: cannot determine free endpoint of path one under segment test")
+	checkThreadableMapItem(T, vd.mapItems["test"],
+	miThreadCheck{mitSegment, "test", latlongType{2100000, 2200000},
+	latlongType{4100000, 4200000}, 0, 1, []latlongRefProto{
+	{2100000, 2200000, 0, 0, 0},{2100000, 2200000, 1, 0, 0},{4100000, 4200000, 1, 4, 0}},
+	[]any{
+		miThreadCheck{mitPoint, "wp", latlongType{2100000, 2200000},
+			latlongType{2100000, 2200000}, 0, 0, []latlongRefProto{
+			{2100000, 2200000, 0, 0, 0}}, []any{2100000, 2200000}},
+		miThreadCheck{mitPath, "one:1", latlongType{2100000, 2200000},
+			latlongType{4100000, 4200000}, 0, 4, []latlongRefProto{
+			{2100000, 2200000, 0, 0, 0},{4100000, 4200000, 4, 0, 0}},
+			[]any{2100000, 2200000, 3100000, 3200000, 4100000, 4200000}},
 	}})
 }
 
 
-func Test_gatherSegmentSinglePathWaypointAfterMidPath(T *testing.T) {
+func Test_gatherSegmentSinglePathWaypointBeforeMidPath(T *testing.T) {
+	//Resolves the problem with the above example by adding a trailing waypoint
 	sourceText := `(layers
 		(layer ll
 			(menuitem "here")
@@ -244,19 +201,33 @@ func Test_gatherSegmentSinglePathWaypointAfterMidPath(T *testing.T) {
 	)
 	(feature road
 		(segment test
+			(point wp 2.1 2.2)
 			(path one
 				1.1 1.2
 				2.1 2.2
 				3.1 3.2
 				4.1 4.2
 			)
-			(point wp 3.1 3.2)
+			(point wp2 4.1 4.2)
 		)
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1100000, 1200000, 3100000, 3200000, []gsPath{
-		{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000, 3100000, 3200000}},
+	checkThreadableMapItem(T, vd.mapItems["test"],
+	miThreadCheck{mitSegment, "test", latlongType{2100000, 2200000},
+	latlongType{4100000, 4200000}, 0, 2, []latlongRefProto{
+	{2100000, 2200000, 0, 0, 0},{2100000, 2200000, 1, 0, 0},{4100000, 4200000, 1, 4, 0},
+	{4100000, 4200000, 2, 0, 0}}, []any{
+		miThreadCheck{mitPoint, "wp", latlongType{2100000, 2200000},
+			latlongType{2100000, 2200000}, 0, 0, []latlongRefProto{
+			{2100000, 2200000, 0, 0, 0}}, []any{2100000, 2200000}},
+		miThreadCheck{mitPath, "one:1", latlongType{2100000, 2200000},
+			latlongType{4100000, 4200000}, 0, 4, []latlongRefProto{
+			{2100000, 2200000, 0, 0, 0},{4100000, 4200000, 4, 0, 0}},
+			[]any{2100000, 2200000, 3100000, 3200000, 4100000, 4200000}},
+		miThreadCheck{mitPoint, "wp2", latlongType{4100000, 4200000},
+			latlongType{4100000, 4200000}, 0, 0,
+			[]latlongRefProto{{4100000, 4200000, 0, 0, 0}}, []any{4100000, 4200000}},
 	}})
 }
 
@@ -282,8 +253,60 @@ func Test_gatherSegmentSinglePathWaypointBeforeAndAfterMidPath(T *testing.T) {
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{2100000, 2200000, 3100000, 3200000, []gsPath{
-		{"one", true, locationPairs{2100000, 2200000, 3100000, 3200000}},
+	checkThreadableMapItem(T, vd.mapItems["test"], 
+	miThreadCheck{mitSegment, "test", latlongType{2100000, 2200000},
+	latlongType{3100000, 3200000}, 0, 2, []latlongRefProto{{2100000, 2200000, 0, 0, 0},
+	{2100000, 2200000, 1, 0, 0},{3100000, 3200000, 1, 2, 0},{3100000, 3200000, 2, 0, 0}},
+	[]any{
+		miThreadCheck{mitPoint, "wp", latlongType{2100000, 2200000},
+			latlongType{2100000, 2200000}, 0, 0, []latlongRefProto{
+			{2100000, 2200000, 0, 0, 0}}, []any{2100000, 2200000}},
+		miThreadCheck{mitPath, "one:1", latlongType{2100000, 2200000},
+			latlongType{3100000, 3200000}, 0, 2, []latlongRefProto{
+			{2100000, 2200000, 0, 0, 0},{3100000, 3200000, 2, 0, 0}},
+			[]any{2100000, 2200000, 3100000, 3200000}},
+		miThreadCheck{mitMarker, "wp2", latlongType{3100000, 3200000},
+			latlongType{3100000, 3200000}, 0, 0, []latlongRefProto{
+			{3100000, 3200000, 0, 0, 0}}, []any{3100000, 3200000}},
+	}})
+}
+
+
+func Test_gatherSegmentSinglePathReversedByWaypoints(T *testing.T) {
+	sourceText := `(layers
+		(layer ll
+			(menuitem "here")
+			(features road)
+		)
+	)
+	(feature road
+		(segment test
+			(point wp 1.1 1.2)
+			(path one
+				3.1 3.2
+				2.1 2.2
+				1.1 1.2
+			)
+			(point wp2 3.1 3.2)
+		)
+	)
+	`
+	vd := prepareAndParseStrings(T, sourceText)
+	checkThreadableMapItem(T, vd.mapItems["test"],
+	miThreadCheck{mitSegment, "test", latlongType{1100000, 1200000},
+	latlongType{3100000, 3200000}, 0, 2, []latlongRefProto{
+	{1100000, 1200000, 0, 0, 0},{3100000, 3200000, 1, 0, 0},{1100000, 1200000, 1, 4, 0},
+	{3100000, 3200000, 2, 0, 0}}, []any{
+		miThreadCheck{mitPoint, "wp", latlongType{1100000, 1200000},
+			latlongType{1100000, 1200000}, 0, 0, []latlongRefProto{
+			{1100000, 1200000, 0, 0, 0}}, []any{1100000, 1200000}},
+		miThreadCheck{mitPath, "one", latlongType{3100000, 3200000},
+			latlongType{1100000, 1200000}, 0, 4, []latlongRefProto{
+			{3100000, 3200000, 0, 0, 0},{1100000, 1200000, 4, 0, 0}},
+			[]any{3100000, 3200000, 2100000, 2200000, 1100000, 1200000}},
+		miThreadCheck{mitPoint, "wp2", latlongType{3100000, 3200000},
+			latlongType{3100000, 3200000}, 0, 0, []latlongRefProto{
+			{3100000, 3200000, 0, 0, 0}}, []any{3100000, 3200000}},
 	}})
 }
 
@@ -307,8 +330,17 @@ func Test_gatherSegmentSinglePathReversedByWaypointBefore(T *testing.T) {
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1100000, 1200000, 3100000, 3200000, []gsPath{
-		{"one", false, locationPairs{3100000, 3200000, 2100000, 2200000, 1100000, 1200000}},
+	checkThreadableMapItem(T, vd.mapItems["test"],
+	miThreadCheck{mitSegment, "test", latlongType{1100000, 1200000},
+	latlongType{3100000, 3200000}, 0, 1, []latlongRefProto{{1100000, 1200000, 0, 0, 0},
+	{3100000, 3200000, 1, 0, 0},{1100000, 1200000, 1, 4, 0}}, []any{
+		miThreadCheck{mitPoint, "wp", latlongType{1100000, 1200000},
+			latlongType{1100000, 1200000}, 0, 0, []latlongRefProto{
+			{1100000, 1200000, 0, 0, 0}}, []any{1100000, 1200000}},
+		miThreadCheck{mitPath, "one", latlongType{3100000, 3200000},
+			latlongType{1100000, 1200000}, 0, 4, []latlongRefProto{
+			{3100000, 3200000, 0, 0, 0},{1100000, 1200000, 4, 0, 0}},
+			[]any{3100000, 3200000, 2100000, 2200000, 1100000, 1200000}},
 	}})
 }
 
@@ -332,8 +364,17 @@ func Test_gatherSegmentSinglePathReversedByWaypointAfter(T *testing.T) {
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1100000, 1200000, 3100000, 3200000, []gsPath{
-		{"one", false, locationPairs{3100000, 3200000, 2100000, 2200000, 1100000, 1200000}},
+	checkThreadableMapItem(T, vd.mapItems["test"],
+	miThreadCheck{mitSegment, "test", latlongType{1100000, 1200000},
+	latlongType{3100000, 3200000}, 0, 1, []latlongRefProto{{3100000, 3200000, 0, 0, 0},
+	{1100000, 1200000, 0, 4, 0},{3100000, 3200000, 1, 0, 0}}, []any{
+		miThreadCheck{mitPath, "one", latlongType{3100000, 3200000},
+			latlongType{1100000, 1200000}, 0, 4, []latlongRefProto{
+			{3100000, 3200000, 0, 0, 0},{1100000, 1200000, 4, 0, 0}},
+			[]any{3100000, 3200000, 2100000, 2200000, 1100000, 1200000}},
+		miThreadCheck{mitPoint, "wp", latlongType{3100000, 3200000},
+			latlongType{3100000, 3200000}, 0, 0, []latlongRefProto{
+			{3100000, 3200000, 0, 0, 0}}, []any{3100000, 3200000}},
 	}})
 }
 
@@ -358,8 +399,21 @@ func Test_gatherSegmentSinglePathReversedByWaypointBeforeAndAfter(T *testing.T) 
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1100000, 1200000, 3100000, 3200000, []gsPath{
-		{"one", false, locationPairs{3100000, 3200000, 2100000, 2200000, 1100000, 1200000}},
+	checkThreadableMapItem(T, vd.mapItems["test"],
+	miThreadCheck{mitSegment, "test", latlongType{1100000, 1200000},
+	latlongType{3100000, 3200000}, 0, 2, []latlongRefProto{
+	{1100000, 1200000, 0, 0, 0},{3100000, 3200000, 1, 0, 0},{1100000, 1200000, 1, 4, 0},
+	{3100000, 3200000, 2, 0, 0}}, []any{
+		miThreadCheck{mitPoint, "wp1", latlongType{1100000, 1200000},
+			latlongType{1100000, 1200000}, 0, 0, []latlongRefProto{
+			{1100000, 1200000, 0, 0, 0}}, []any{1100000, 1200000}},
+		miThreadCheck{mitPath, "one", latlongType{3100000, 3200000},
+			latlongType{1100000, 1200000}, 0, 4, []latlongRefProto{
+			{3100000, 3200000, 0, 0, 0},{1100000, 1200000, 4, 0, 0}},
+			[]any{3100000, 3200000, 2100000, 2200000, 1100000, 1200000}},
+		miThreadCheck{mitPoint, "wp2", latlongType{3100000, 3200000},
+			latlongType{3100000, 3200000}, 0, 0, []latlongRefProto{
+			{3100000, 3200000, 0, 0, 0}}, []any{3100000, 3200000}},
 	}})
 }
 
@@ -384,8 +438,21 @@ func Test_gatherSegmentSinglePathReversedByWaypointBeforeAndAfterInMiddle(T *tes
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1100000, 1200000, 2100000, 2200000, []gsPath{
-		{"one", false, locationPairs{2100000, 2200000, 1100000, 1200000}},
+	checkThreadableMapItem(T, vd.mapItems["test"],
+	miThreadCheck{mitSegment, "test", latlongType{1100000, 1200000},
+	latlongType{2100000, 2200000}, 0, 2, []latlongRefProto{{1100000, 1200000, 0, 0, 0},
+	{2100000, 2200000, 1, 0, 0},{1100000, 1200000, 1, 2, 0},{2100000, 2200000, 2, 0, 0}},
+	[]any{
+		miThreadCheck{mitPoint, "wp1", latlongType{1100000, 1200000},
+			latlongType{1100000, 1200000}, 0, 0, []latlongRefProto{
+			{1100000, 1200000, 0, 0, 0}}, []any{1100000, 1200000}},
+		miThreadCheck{mitPath, "one:1", latlongType{2100000, 2200000},
+			latlongType{1100000, 1200000}, 0, 2, []latlongRefProto{
+			{2100000, 2200000, 0, 0, 0},{1100000, 1200000, 2, 0, 0}},
+			[]any{2100000, 2200000, 1100000, 1200000}},
+		miThreadCheck{mitPoint, "wp2", latlongType{2100000, 2200000},
+			latlongType{2100000, 2200000}, 0, 0, []latlongRefProto{
+			{2100000, 2200000, 0, 0, 0}}, []any{2100000, 2200000}},
 	}})
 }
 
@@ -412,8 +479,21 @@ func Test_gatherSegmentReversedSinglePathReversedByInteriorWaypoints(T *testing.
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{2100000, 2200000, 4100000, 4200000, []gsPath{
-		{"one", false, locationPairs{4100000, 4200000, 3100000, 3200000, 2100000, 2200000}},
+	checkThreadableMapItem(T, vd.mapItems["test"],
+	miThreadCheck{mitSegment, "test", latlongType{2100000, 2200000},
+	latlongType{4100000, 4200000}, 0, 2, []latlongRefProto{{2100000, 2200000, 0, 0, 0},
+	{4100000, 4200000, 1, 0, 0},{2100000, 2200000, 1, 4, 0},{4100000, 4200000, 2, 0, 0}},
+	[]any{
+		miThreadCheck{mitPoint, "wp1", latlongType{2100000, 2200000},
+			latlongType{2100000, 2200000}, 0, 0, []latlongRefProto{
+			{2100000, 2200000, 0, 0, 0}}, []any{2100000, 2200000}},
+		miThreadCheck{mitPath, "one:1", latlongType{4100000, 4200000},
+			latlongType{2100000, 2200000}, 0, 4, []latlongRefProto{
+			{4100000, 4200000, 0, 0, 0},{2100000, 2200000, 4, 0, 0}},
+			[]any{4100000, 4200000, 3100000, 3200000, 2100000, 2200000}},
+		miThreadCheck{mitPoint, "wp2", latlongType{4100000, 4200000},
+			latlongType{4100000, 4200000}, 0, 0, []latlongRefProto{
+			{4100000, 4200000, 0, 0, 0}}, []any{4100000, 4200000}},
 	}})
 }
 
@@ -442,9 +522,22 @@ func Test_gatherSegmentTwoPathsWaypointBefore(T *testing.T) {
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1100000, 1200000, 5100000, 5200000, []gsPath{
-		{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000, 3100000, 3200000}},
-		{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000, 5100000, 5200000}},
+	checkThreadableMapItem(T, vd.mapItems["test"],
+	miThreadCheck{mitSegment, "test", latlongType{1100000, 1200000},
+	latlongType{5100000, 5200000}, 0, 2, []latlongRefProto{{1100000, 1200000, 0, 0, 0},
+	{1100000, 1200000, 1, 0, 0},{3100000, 3200000, 1, 4, 0},{3100000, 3200000, 2, 0, 0},
+	{5100000, 5200000, 2, 4, 0}}, []any{
+		miThreadCheck{mitCircle, "wp", latlongType{1100000, 1200000},
+			latlongType{1100000, 1200000}, 0, 0, []latlongRefProto{
+			{1100000, 1200000, 0, 0, 0}}, []any{1100000, 1200000}},
+		miThreadCheck{mitPath, "one", latlongType{1100000, 1200000},
+			latlongType{3100000, 3200000}, 0, 4, []latlongRefProto{
+			{1100000, 1200000, 0, 0, 0},{3100000, 3200000, 4, 0, 0}},
+			[]any{1100000, 1200000, 2100000, 2200000, 3100000, 3200000}},
+		miThreadCheck{mitPath, "two", latlongType{3100000, 3200000},
+			latlongType{5100000, 5200000}, 0, 4, []latlongRefProto{
+			{3100000, 3200000, 0, 0, 0},{5100000, 5200000, 4, 0, 0}},
+			[]any{3100000, 3200000, 4100000, 4200000, 5100000, 5200000}},
 	}})
 }
 
@@ -473,14 +566,29 @@ func Test_gatherSegmentTwoPathsWaypointBeforeMidPath(T *testing.T) {
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{2100000, 2200000, 5100000, 5200000, []gsPath{
-		{"one", true, locationPairs{2100000, 2200000, 3100000, 3200000}},
-		{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000, 5100000, 5200000}},
+	checkThreadableMapItem(T, vd.mapItems["test"],
+	miThreadCheck{mitSegment, "test", latlongType{2100000, 2200000},
+	latlongType{5100000, 5200000}, 0, 2, []latlongRefProto{
+	{2100000, 2200000, 0, 0, 0},{2100000, 2200000, 1, 0, 0},{3100000, 3200000, 1, 2, 0},
+	{3100000, 3200000, 2, 0, 0},{5100000, 5200000, 2, 4, 0}}, []any{
+		miThreadCheck{mitCircle, "wp", latlongType{2100000, 2200000},
+			latlongType{2100000, 2200000}, 0, 0, []latlongRefProto{
+			{2100000, 2200000, 0, 0, 0}}, []any{2100000, 2200000}},
+		miThreadCheck{mitPath, "one:1", latlongType{2100000, 2200000},
+			latlongType{3100000, 3200000}, 0, 2, []latlongRefProto{
+			{2100000, 2200000, 0, 0, 0},{3100000, 3200000, 2, 0, 0}},
+			[]any{2100000, 2200000, 3100000, 3200000}},
+		miThreadCheck{mitPath, "two", latlongType{3100000, 3200000},
+			latlongType{5100000, 5200000}, 0, 4, []latlongRefProto{
+			{3100000, 3200000, 0, 0, 0},{5100000, 5200000, 4, 0, 0}},
+			[]any{3100000, 3200000, 4100000, 4200000, 5100000, 5200000}},
 	}})
 }
 
 
 func Test_gatherSegmentTwoPathsWaypointMiddleMidFirstPath(T *testing.T) {
+	// Note that this construct is illegal since it leaves path one without a
+	// definite endpoint.
 	sourceText := `(layers
 		(layer ll
 			(menuitem "here")
@@ -504,16 +612,34 @@ func Test_gatherSegmentTwoPathsWaypointMiddleMidFirstPath(T *testing.T) {
 		)
 	)
 	`
-	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1100000, 1200000, 5100000, 5200000, []gsPath{
-		{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000}},
-		{"two", true, locationPairs{2100000, 2200000, 3100000, 3200000, 4100000, 4200000,
+	vd := prepareAndParseStringsIgnoreThreadingError(T, sourceText)
+	checkDeferredErrors(T, vd,
+		"infile0:9: cannot determine free endpoint of path one under segment test")
+	checkThreadableMapItem(T, vd.mapItems["test"],
+	miThreadCheck{mitSegment, "test", latlongType{1100000, 1200000},
+	latlongType{5100000, 5200000}, 0, 2, []latlongRefProto{{1100000, 1200000, 0, 0, 0},
+	{2100000, 2200000, 0, 2, 0},{2100000, 2200000, 1, 0, 0},{2100000, 2200000, 2, 0, 0},
+	{3100000, 3200000, 2, 2, 0},{5100000, 5200000, 2, 6, 0}}, []any{
+		miThreadCheck{mitPath, "one:1", latlongType{1100000, 1200000},
+			latlongType{2100000, 2200000}, 0, 2, []latlongRefProto{
+			{1100000, 1200000, 0, 0, 0},{2100000, 2200000, 2, 0, 0}},
+			[]any{1100000, 1200000, 2100000, 2200000}},
+		miThreadCheck{mitPoint, "wp", latlongType{2100000, 2200000},
+			latlongType{2100000, 2200000}, 0, 0, []latlongRefProto{
+			{2100000, 2200000, 0, 0, 0}}, []any{2100000, 2200000}},
+		miThreadCheck{mitPath, "two", latlongType{2100000, 2200000},
+			latlongType{5100000, 5200000}, 0, 6, []latlongRefProto{
+			{2100000, 2200000, 0, 0, 0},{3100000, 3200000, 2, 0, 0},
+			{5100000, 5200000, 6, 0, 0}},
+			[]any{2100000, 2200000, 3100000, 3200000, 4100000, 4200000,
 			5100000, 5200000}},
 	}})
 }
 
 
 func Test_gatherSegmentTwoPathsWaypointMiddleMidSecondPath(T *testing.T) {
+	// Note that this construct is illegal since it leaves path two without a
+	// definite endpoint.
 	sourceText := `(layers
 		(layer ll
 			(menuitem "here")
@@ -538,16 +664,34 @@ func Test_gatherSegmentTwoPathsWaypointMiddleMidSecondPath(T *testing.T) {
 		)
 	)
 	`
-	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1100000, 1200000, 5100000, 5200000, []gsPath{
-		{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000, 3100000, 3200000,
-			4100000, 4200000}},
-		{"two", true, locationPairs{4100000, 4200000, 5100000, 5200000}},
+	vd := prepareAndParseStringsIgnoreThreadingError(T, sourceText)
+	checkDeferredErrors(T, vd,
+		"infile0:16: cannot determine free endpoint of path two under segment test")
+	checkThreadableMapItem(T, vd.mapItems["test"],
+	miThreadCheck{mitSegment, "test", latlongType{1100000, 1200000},
+	latlongType{5100000, 5200000}, 0, 2, []latlongRefProto{{1100000, 1200000, 0, 0, 0},
+	{2100000, 2200000, 0, 2, 0},{3100000, 3200000, 0, 4, 0},{4100000, 4200000, 0, 6, 0},
+	{4100000, 4200000, 1, 0, 0},{4100000, 4200000, 2, 0, 0},{5100000, 5200000, 2, 2, 0}},
+	[]any{
+		miThreadCheck{mitPath, "one", latlongType{1100000, 1200000},
+			latlongType{4100000, 4200000}, 0, 6, []latlongRefProto{
+			{1100000, 1200000, 0, 0, 0},{2100000, 2200000, 2, 0, 0},
+			{3100000, 3200000, 4, 0, 0},{4100000, 4200000, 6, 0, 0}}, []any{
+			1100000, 1200000, 2100000, 2200000, 3100000, 3200000, 4100000, 4200000}},
+		miThreadCheck{mitPoint, "wp", latlongType{4100000, 4200000},
+			latlongType{4100000, 4200000}, 0, 0, []latlongRefProto{
+			{4100000, 4200000, 0, 0, 0}}, []any{4100000, 4200000}},
+		miThreadCheck{mitPath, "two:1", latlongType{4100000, 4200000},
+			latlongType{5100000, 5200000}, 0, 2, []latlongRefProto{
+			{4100000, 4200000, 0, 0, 0},{5100000, 5200000, 2, 0, 0}},
+			[]any{4100000, 4200000, 5100000, 5200000}},
 	}})
 }
 
 
 func Test_gatherSegmentTwoPathsWaypointMiddleMidBothPaths(T *testing.T) {
+	// Note that this construct is illegal since it leaves neither path with a
+	// definite endpoint.
 	sourceText := `(layers
 		(layer ll
 			(menuitem "here")
@@ -572,10 +716,27 @@ func Test_gatherSegmentTwoPathsWaypointMiddleMidBothPaths(T *testing.T) {
 		)
 	)
 	`
-	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1100000, 1200000, 5100000, 5200000, []gsPath{
-		{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000, 3100000, 3200000}},
-		{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000, 5100000, 5200000}},
+	vd := prepareAndParseStringsIgnoreThreadingError(T, sourceText)
+	checkDeferredErrors(T, vd,
+		"infile0:9: cannot determine free endpoint of path one under segment test\n" +
+		"infile0:16: cannot determine free endpoint of path two under segment test")
+	checkThreadableMapItem(T, vd.mapItems["test"],
+	miThreadCheck{mitSegment, "test", latlongType{1100000, 1200000},
+	latlongType{5100000, 5200000}, 0, 2, []latlongRefProto{{1100000, 1200000, 0, 0, 0},
+	{3100000, 3200000, 0, 4, 0},{3100000, 3200000, 1, 0, 0},{3100000, 3200000, 2, 0, 0},
+	{4100000, 4200000, 2, 2, 0},{5100000, 5200000, 2, 4, 0}}, []any{
+		miThreadCheck{mitPath, "one:1", latlongType{1100000, 1200000},
+			latlongType{3100000, 3200000}, 0, 4, []latlongRefProto{
+			{1100000, 1200000, 0, 0, 0},{3100000, 3200000, 4, 0, 0}},
+			[]any{1100000, 1200000, 2100000, 2200000, 3100000, 3200000}},
+		miThreadCheck{mitPoint, "wp", latlongType{3100000, 3200000},
+			latlongType{3100000, 3200000}, 0, 0, []latlongRefProto{
+			{3100000, 3200000, 0, 0, 0}}, []any{3100000, 3200000}},
+		miThreadCheck{mitPath, "two:1", latlongType{3100000, 3200000},
+			latlongType{5100000, 5200000}, 0, 4, []latlongRefProto{
+			{3100000, 3200000, 0, 0, 0},{4100000, 4200000, 2, 0, 0},
+			{5100000, 5200000, 4, 0, 0}},
+			[]any{3100000, 3200000, 4100000, 4200000, 5100000, 5200000}},
 	}})
 }
 
@@ -604,9 +765,22 @@ func Test_gatherSegmentTwoPathsWaypointEnd(T *testing.T) {
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1100000, 1200000, 5100000, 5200000, []gsPath{
-		{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000, 3100000, 3200000}},
-		{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000, 5100000, 5200000}},
+	checkThreadableMapItem(T, vd.mapItems["test"],
+	miThreadCheck{mitSegment, "test", latlongType{1100000, 1200000},
+	latlongType{5100000, 5200000}, 0, 2, []latlongRefProto{{1100000, 1200000, 0, 0, 0},
+	{3100000, 3200000, 0, 4, 0},{3100000, 3200000, 1, 0, 0},{5100000, 5200000, 1, 4, 0},
+	{5100000, 5200000, 2, 0, 0}}, []any{
+		miThreadCheck{mitPath, "one", latlongType{1100000, 1200000},
+			latlongType{3100000, 3200000}, 0, 4, []latlongRefProto{
+			{1100000, 1200000, 0, 0, 0},{3100000, 3200000, 4, 0, 0}},
+			[]any{1100000, 1200000, 2100000, 2200000, 3100000, 3200000}},
+		miThreadCheck{mitPath, "two", latlongType{3100000, 3200000},
+			latlongType{5100000, 5200000}, 0, 4, []latlongRefProto{
+			{3100000, 3200000, 0, 0, 0},{5100000, 5200000, 4, 0, 0}},
+			[]any{3100000, 3200000, 4100000, 4200000, 5100000, 5200000}},
+		miThreadCheck{mitCircle, "wp", latlongType{5100000, 5200000},
+			latlongType{5100000, 5200000}, 0, 0, []latlongRefProto{
+			{5100000, 5200000, 0, 0, 0}}, []any{5100000, 5200000}},
 	}})
 }
 
@@ -635,9 +809,22 @@ func Test_gatherSegmentTwoPathsWaypointEndMidPath(T *testing.T) {
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1100000, 1200000, 4100000, 4200000, []gsPath{
-		{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000, 3100000, 3200000}},
-		{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000}},
+	checkThreadableMapItem(T, vd.mapItems["test"],
+	miThreadCheck{mitSegment, "test", latlongType{1100000, 1200000},
+	latlongType{4100000, 4200000}, 0, 2, []latlongRefProto{{1100000, 1200000, 0, 0, 0},
+	{3100000, 3200000, 0, 4, 0},{3100000, 3200000, 1, 0, 0},{4100000, 4200000, 1, 2, 0},
+	{4100000, 4200000, 2, 0, 0}}, []any{
+		miThreadCheck{mitPath, "one", latlongType{1100000, 1200000},
+			latlongType{3100000, 3200000}, 0, 4, []latlongRefProto{
+			{1100000, 1200000, 0, 0, 0},{3100000, 3200000, 4, 0, 0}},
+			[]any{1100000, 1200000, 2100000, 2200000, 3100000, 3200000}},
+		miThreadCheck{mitPath, "two:1", latlongType{3100000, 3200000},
+			latlongType{4100000, 4200000}, 0, 2, []latlongRefProto{
+			{3100000, 3200000, 0, 0, 0},{4100000, 4200000, 2, 0, 0}},
+			[]any{3100000, 3200000, 4100000, 4200000}},
+		miThreadCheck{mitCircle, "wp", latlongType{4100000, 4200000},
+			latlongType{4100000, 4200000}, 0, 0, []latlongRefProto{
+			{4100000, 4200000, 0, 0, 0}}, []any{4100000, 4200000}},
 	}})
 }
 
@@ -665,9 +852,19 @@ func Test_gatherSegmentTwoPathsFlipFirstPath(T *testing.T) {
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1100000, 1200000, 5100000, 5200000, []gsPath{
-		{"one", false, locationPairs{3100000, 3200000, 2100000, 2200000, 1100000, 1200000}},
-		{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000, 5100000, 5200000}},
+	checkThreadableMapItem(T, vd.mapItems["test"],
+	miThreadCheck{mitSegment, "test", latlongType{1100000, 1200000},
+	latlongType{5100000, 5200000}, 0, 1, []latlongRefProto{{3100000, 3200000, 0, 0, 0},
+	{1100000, 1200000, 0, 4, 0},{3100000, 3200000, 1, 0, 0},{5100000, 5200000, 1, 4, 0}},
+	[]any{
+		miThreadCheck{mitPath, "one", latlongType{3100000, 3200000},
+			latlongType{1100000, 1200000}, 0, 4, []latlongRefProto{
+			{3100000, 3200000, 0, 0, 0},{1100000, 1200000, 4, 0, 0}},
+			[]any{3100000, 3200000, 2100000, 2200000, 1100000, 1200000}},
+		miThreadCheck{mitPath, "two", latlongType{3100000, 3200000},
+			latlongType{5100000, 5200000}, 0, 4, []latlongRefProto{
+			{3100000, 3200000, 0, 0, 0},{5100000, 5200000, 4, 0, 0}},
+			[]any{3100000, 3200000, 4100000, 4200000, 5100000, 5200000}},
 	}})
 }
 
@@ -695,9 +892,19 @@ func Test_gatherSegmentTwoPathsFlipSecondPath(T *testing.T) {
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1100000, 1200000, 5100000, 5200000, []gsPath{
-		{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000, 3100000, 3200000}},
-		{"two", false, locationPairs{5100000, 5200000, 4100000, 4200000, 3100000, 3200000}},
+	checkThreadableMapItem(T, vd.mapItems["test"],
+	miThreadCheck{mitSegment, "test", latlongType{1100000, 1200000},
+	latlongType{5100000, 5200000}, 0, 1, []latlongRefProto{{1100000, 1200000, 0, 0, 0},
+	{3100000, 3200000, 0, 4, 0},{5100000, 5200000, 1, 0, 0},{3100000, 3200000, 1, 4, 0}},
+	[]any{
+		miThreadCheck{mitPath, "one", latlongType{1100000, 1200000},
+			latlongType{3100000, 3200000}, 0, 4, []latlongRefProto{
+			{1100000, 1200000, 0, 0, 0},{3100000, 3200000, 4, 0, 0}},
+			[]any{1100000, 1200000, 2100000, 2200000, 3100000, 3200000}},
+		miThreadCheck{mitPath, "two", latlongType{5100000, 5200000},
+			latlongType{3100000, 3200000}, 0, 4, []latlongRefProto{
+			{5100000, 5200000, 0, 0, 0},{3100000, 3200000, 4, 0, 0}},
+			[]any{5100000, 5200000, 4100000, 4200000, 3100000, 3200000}},
 	}})
 }
 
@@ -728,15 +935,33 @@ func Test_gatherSegmentTwoPathsFlipSecondPathWaypointAmbiguitySolved(T *testing.
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1100000, 1200000, 5100000, 5200000, []gsPath{
-		{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000, 3100000, 3200000,
-			4100000, 4200000}},
-		{"two", false, locationPairs{5100000, 5200000, 4100000, 4200000}},
+	checkThreadableMapItem(T, vd.mapItems["test"],
+	miThreadCheck{mitSegment, "test", latlongType{1100000, 1200000},
+	latlongType{5100000, 5200000}, 0, 3, []latlongRefProto{{1100000, 1200000, 0, 0, 0},
+	{3100000, 3200000, 0, 4, 0},{4100000, 4200000, 0, 6, 0},{4100000, 4200000, 1, 0, 0},
+	{5100000, 5200000, 2, 0, 0},{4100000, 4200000, 2, 2, 0},{5100000, 5200000, 3, 0, 0}},
+	[]any{
+		miThreadCheck{mitPath, "one", latlongType{1100000, 1200000},
+			latlongType{4100000, 4200000}, 0, 6, []latlongRefProto{
+			{1100000, 1200000, 0, 0, 0},{3100000, 3200000, 4, 0, 0},
+			{4100000, 4200000, 6, 0, 0}}, []any{1100000, 1200000, 2100000, 2200000,
+			3100000, 3200000, 4100000, 4200000}},
+		miThreadCheck{mitPoint, "wp", latlongType{4100000, 4200000},
+			latlongType{4100000, 4200000}, 0, 0, []latlongRefProto{
+			{4100000, 4200000, 0, 0, 0}}, []any{4100000, 4200000}},
+		miThreadCheck{mitPath, "two:1", latlongType{5100000, 5200000},
+			latlongType{4100000, 4200000}, 0, 2, []latlongRefProto{
+			{5100000, 5200000, 0, 0, 0},{4100000, 4200000, 2, 0, 0}},
+			[]any{5100000, 5200000, 4100000, 4200000}},
+		miThreadCheck{mitPoint, "wp2", latlongType{5100000, 5200000},
+			latlongType{5100000, 5200000}, 0, 0, []latlongRefProto{
+			{5100000, 5200000, 0, 0, 0}}, []any{5100000, 5200000}},
 	}})
 }
 
 
 func Test_gatherSegmentTwoPathsFlipSecondPathWaypointAmbiguitySolvedOtherWay(T *testing.T) {
+	// Note that this sets up a cycle at point [3.1 3.2]
 	sourceText := `(layers
 		(layer ll
 			(menuitem "here")
@@ -762,10 +987,27 @@ func Test_gatherSegmentTwoPathsFlipSecondPathWaypointAmbiguitySolvedOtherWay(T *
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1100000, 1200000, 3100000, 3200000, []gsPath{
-		{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000, 3100000, 3200000,
-			4100000, 4200000}},
-		{"two", true, locationPairs{4100000, 4200000, 3100000, 3200000}},
+	checkThreadableMapItem(T, vd.mapItems["test"],
+	miThreadCheck{mitSegment, "test", latlongType{1100000, 1200000},
+	latlongType{3100000, 3200000}, 0, 3, []latlongRefProto{{1100000, 1200000, 0, 0, 0},
+	{3100000, 3200000, 0, 4, 0},{4100000, 4200000, 0, 6, 0},{4100000, 4200000, 1, 0, 0},
+	{4100000, 4200000, 2, 0, 0},{3100000, 3200000, 2, 2, 0},{3100000, 3200000, 3, 0, 0}},
+	[]any{
+		miThreadCheck{mitPath, "one", latlongType{1100000, 1200000},
+			latlongType{4100000, 4200000}, 0, 6, []latlongRefProto{
+			{1100000, 1200000, 0, 0, 0},{3100000, 3200000, 4, 0, 0},
+			{4100000, 4200000, 6, 0, 0}}, []any{1100000, 1200000, 2100000, 2200000,
+			3100000, 3200000, 4100000, 4200000}},
+		miThreadCheck{mitPoint, "wp", latlongType{4100000, 4200000},
+			latlongType{4100000, 4200000}, 0, 0, []latlongRefProto{
+			{4100000, 4200000, 0, 0, 0}}, []any{4100000, 4200000}},
+		miThreadCheck{mitPath, "two:1", latlongType{4100000, 4200000},
+			latlongType{3100000, 3200000}, 0, 2, []latlongRefProto{
+			{4100000, 4200000, 0, 0, 0},{3100000, 3200000, 2, 0, 0}},
+			[]any{4100000, 4200000, 3100000, 3200000}},
+		miThreadCheck{mitPoint, "wp2", latlongType{3100000, 3200000},
+			latlongType{3100000, 3200000}, 0, 0, []latlongRefProto{
+			{3100000, 3200000, 0, 0, 0}}, []any{3100000, 3200000}},
 	}})
 }
 
@@ -794,9 +1036,64 @@ func Test_gatherSegmentTwoPathsFlippedByMiddleWaypoint(T *testing.T) {
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1100000, 1200000, 5100000, 5200000, []gsPath{
-		{"one", false, locationPairs{3100000, 3200000, 2100000, 2200000, 1100000, 1200000}},
-		{"two", false, locationPairs{5100000, 5200000, 4100000, 4200000, 3100000, 3200000}},
+	checkThreadableMapItem(T, vd.mapItems["test"],
+	miThreadCheck{mitSegment, "test", latlongType{1100000, 1200000},
+	latlongType{5100000, 5200000}, 0, 2, []latlongRefProto{{3100000, 3200000, 0, 0, 0},
+	{1100000, 1200000, 0, 4, 0},{3100000, 3200000, 1, 0, 0},{5100000, 5200000, 2, 0, 0},
+	{3100000, 3200000, 2, 4, 0}}, []any{
+		miThreadCheck{mitPath, "one", latlongType{3100000, 3200000},
+			latlongType{1100000, 1200000}, 0, 4, []latlongRefProto{
+			{3100000, 3200000, 0, 0, 0},{1100000, 1200000, 4, 0, 0}},
+			[]any{3100000, 3200000, 2100000, 2200000, 1100000, 1200000}},
+		miThreadCheck{mitMarker, "$5", latlongType{3100000, 3200000},
+			latlongType{3100000, 3200000}, 0, 0, []latlongRefProto{
+			{3100000, 3200000, 0, 0, 0}}, []any{3100000, 3200000}},
+		miThreadCheck{mitPath, "two", latlongType{5100000, 5200000},
+			latlongType{3100000, 3200000}, 0, 4, []latlongRefProto{
+			{5100000, 5200000, 0, 0, 0},{3100000, 3200000, 4, 0, 0}},
+			[]any{5100000, 5200000, 4100000, 4200000, 3100000, 3200000}},
+	}})
+}
+
+
+func Test_gatherSegmentTwoPathsFlippedWithoutWaypoint(T *testing.T) {
+	// Similar to Test_gatherSegmentTwoPathsFlippedByMiddleWaypoint above but without
+	// use of a waypoint between the paths
+	sourceText := `(layers
+		(layer ll
+			(menuitem "here")
+			(features road)
+		)
+	)
+	(feature road
+		(segment test
+			(path one
+				3.1 3.2
+				2.1 2.2
+				1.1 1.2
+			)
+			(path two
+				5.1 5.2
+				4.1 4.2
+				3.1 3.2
+			)
+		)
+	)
+	`
+	vd := prepareAndParseStrings(T, sourceText)
+	checkThreadableMapItem(T, vd.mapItems["test"],
+	miThreadCheck{mitSegment, "test", latlongType{1100000, 1200000},
+	latlongType{5100000, 5200000}, 0, 1, []latlongRefProto{{3100000, 3200000, 0, 0, 0},
+	{1100000, 1200000, 0, 4, 0},{5100000, 5200000, 1, 0, 0},{3100000, 3200000, 1, 4, 0}},
+	[]any{
+		miThreadCheck{mitPath, "one", latlongType{3100000, 3200000},
+			latlongType{1100000, 1200000}, 0, 4, []latlongRefProto{
+			{3100000, 3200000, 0, 0, 0},{1100000, 1200000, 4, 0, 0}},
+			[]any{3100000, 3200000, 2100000, 2200000, 1100000, 1200000}},
+		miThreadCheck{mitPath, "two", latlongType{5100000, 5200000},
+			latlongType{3100000, 3200000}, 0, 4, []latlongRefProto{
+			{5100000, 5200000, 0, 0, 0},{3100000, 3200000, 4, 0, 0}},
+			[]any{5100000, 5200000, 4100000, 4200000, 3100000, 3200000}},
 	}})
 }
 
@@ -829,11 +1126,23 @@ func Test_gatherSegmentThreePaths(T *testing.T) {
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1100000, 1200000, 7100000, 7200000, []gsPath{
-		{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000, 3100000, 3200000}},
-		{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000, 5100000, 5200000}},
-		{"three", true, locationPairs{5100000, 5200000, 6100000, 6200000,
-			7100000, 7200000}},
+	checkThreadableMapItem(T, vd.mapItems["test"],
+	miThreadCheck{mitSegment, "test", latlongType{1100000, 1200000},
+	latlongType{7100000, 7200000}, 0, 2, []latlongRefProto{{1100000, 1200000, 0, 0, 0},
+	{3100000, 3200000, 0, 4, 0},{3100000, 3200000, 1, 0, 0},{5100000, 5200000, 1, 4, 0},
+	{5100000, 5200000, 2, 0, 0},{7100000, 7200000, 2, 4, 0}}, []any{
+		miThreadCheck{mitPath, "one", latlongType{1100000, 1200000},
+			latlongType{3100000, 3200000}, 0, 4, []latlongRefProto{
+			{1100000, 1200000, 0, 0, 0},{3100000, 3200000, 4, 0, 0}},
+			[]any{1100000, 1200000, 2100000, 2200000, 3100000, 3200000}},
+		miThreadCheck{mitPath, "two", latlongType{3100000, 3200000},
+			latlongType{5100000, 5200000}, 0, 4, []latlongRefProto{
+			{3100000, 3200000, 0, 0, 0},{5100000, 5200000, 4, 0, 0}},
+			[]any{3100000, 3200000, 4100000, 4200000, 5100000, 5200000}},
+		miThreadCheck{mitPath, "three", latlongType{5100000, 5200000},
+			latlongType{7100000, 7200000}, 0, 4, []latlongRefProto{
+			{5100000, 5200000, 0, 0, 0},{7100000, 7200000, 4, 0, 0}},
+			[]any{5100000, 5200000, 6100000, 6200000, 7100000, 7200000}},
 	}})
 }
 
@@ -866,11 +1175,23 @@ func Test_gatherSegmentThreePathsFirstReversed(T *testing.T) {
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1100000, 1200000, 7100000, 7200000, []gsPath{
-		{"one", false, locationPairs{3100000, 3200000, 2100000, 2200000, 1100000, 1200000}},
-		{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000, 5100000, 5200000}},
-		{"three", true, locationPairs{5100000, 5200000, 6100000, 6200000,
-			7100000, 7200000}},
+	checkThreadableMapItem(T, vd.mapItems["test"],
+	miThreadCheck{mitSegment, "test", latlongType{1100000, 1200000},
+	latlongType{7100000, 7200000}, 0, 2, []latlongRefProto{{3100000, 3200000, 0, 0, 0},
+	{1100000, 1200000, 0, 4, 0},{3100000, 3200000, 1, 0, 0},{5100000, 5200000, 1, 4, 0},
+	{5100000, 5200000, 2, 0, 0},{7100000, 7200000, 2, 4, 0}}, []any{
+		miThreadCheck{mitPath, "one", latlongType{3100000, 3200000},
+			latlongType{1100000, 1200000}, 0, 4, []latlongRefProto{
+			{3100000, 3200000, 0, 0, 0},{1100000, 1200000, 4, 0, 0}},
+			[]any{3100000, 3200000, 2100000, 2200000, 1100000, 1200000}},
+		miThreadCheck{mitPath, "two", latlongType{3100000, 3200000},
+			latlongType{5100000, 5200000}, 0, 4, []latlongRefProto{
+			{3100000, 3200000, 0, 0, 0},{5100000, 5200000, 4, 0, 0}},
+			[]any{3100000, 3200000, 4100000, 4200000, 5100000, 5200000}},
+		miThreadCheck{mitPath, "three", latlongType{5100000, 5200000},
+			latlongType{7100000, 7200000}, 0, 4, []latlongRefProto{
+			{5100000, 5200000, 0, 0, 0},{7100000, 7200000, 4, 0, 0}},
+			[]any{5100000, 5200000, 6100000, 6200000, 7100000, 7200000}},
 	}})
 }
 
@@ -903,11 +1224,23 @@ func Test_gatherSegmentThreePathsSecondReversed(T *testing.T) {
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1100000, 1200000, 7100000, 7200000, []gsPath{
-		{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000, 3100000, 3200000}},
-		{"two", false, locationPairs{5100000, 5200000, 4100000, 4200000, 3100000, 3200000}},
-		{"three", true, locationPairs{5100000, 5200000, 6100000, 6200000,
-			7100000, 7200000}},
+	checkThreadableMapItem(T, vd.mapItems["test"],
+	miThreadCheck{mitSegment, "test", latlongType{1100000, 1200000},
+	latlongType{7100000, 7200000}, 0, 2, []latlongRefProto{{1100000, 1200000, 0, 0, 0},
+	{3100000, 3200000, 0, 4, 0},{5100000, 5200000, 1, 0, 0},{3100000, 3200000, 1, 4, 0},
+	{5100000, 5200000, 2, 0, 0},{7100000, 7200000, 2, 4, 0}}, []any{
+		miThreadCheck{mitPath, "one", latlongType{1100000, 1200000},
+			latlongType{3100000, 3200000}, 0, 4, []latlongRefProto{
+			{1100000, 1200000, 0, 0, 0},{3100000, 3200000, 4, 0, 0}},
+			[]any{1100000, 1200000, 2100000, 2200000, 3100000, 3200000}},
+		miThreadCheck{mitPath, "two", latlongType{5100000, 5200000},
+			latlongType{3100000, 3200000}, 0, 4, []latlongRefProto{
+			{5100000, 5200000, 0, 0, 0},{3100000, 3200000, 4, 0, 0}},
+			[]any{5100000, 5200000, 4100000, 4200000, 3100000, 3200000}},
+		miThreadCheck{mitPath, "three", latlongType{5100000, 5200000},
+			latlongType{7100000, 7200000}, 0, 4, []latlongRefProto{
+			{5100000, 5200000, 0, 0, 0},{7100000, 7200000, 4, 0, 0}},
+			[]any{5100000, 5200000, 6100000, 6200000, 7100000, 7200000}},
 	}})
 }
 
@@ -940,11 +1273,23 @@ func Test_gatherSegmentThreePathsThirdReversed(T *testing.T) {
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredSegmentPaths(T, vd, "test", gsCheck{1100000, 1200000, 7100000, 7200000, []gsPath{
-		{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000, 3100000, 3200000}},
-		{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000, 5100000, 5200000}},
-		{"three", false, locationPairs{7100000, 7200000, 6100000, 6200000,
-			5100000, 5200000}},
+	checkThreadableMapItem(T, vd.mapItems["test"],
+	miThreadCheck{mitSegment, "test", latlongType{1100000, 1200000},
+	latlongType{7100000, 7200000}, 0, 2, []latlongRefProto{{1100000, 1200000, 0, 0, 0},
+	{3100000, 3200000, 0, 4, 0},{3100000, 3200000, 1, 0, 0},{5100000, 5200000, 1, 4, 0},
+	{7100000, 7200000, 2, 0, 0},{5100000, 5200000, 2, 4, 0}}, []any{
+		miThreadCheck{mitPath, "one", latlongType{1100000, 1200000},
+			latlongType{3100000, 3200000}, 0, 4, []latlongRefProto{
+			{1100000, 1200000, 0, 0, 0},{3100000, 3200000, 4, 0, 0}},
+			[]any{1100000, 1200000, 2100000, 2200000, 3100000, 3200000}},
+		miThreadCheck{mitPath, "two", latlongType{3100000, 3200000},
+			latlongType{5100000, 5200000}, 0, 4, []latlongRefProto{
+			{3100000, 3200000, 0, 0, 0},{5100000, 5200000, 4, 0, 0}},
+			[]any{3100000, 3200000, 4100000, 4200000, 5100000, 5200000}},
+		miThreadCheck{mitPath, "three", latlongType{7100000, 7200000},
+			latlongType{5100000, 5200000}, 0, 4, []latlongRefProto{
+			{7100000, 7200000, 0, 0, 0},{5100000, 5200000, 4, 0, 0}},
+			[]any{7100000, 7200000, 6100000, 6200000, 5100000, 5200000}},
 	}})
 }
 
@@ -989,18 +1334,41 @@ func Test_gatherRouteContinuityOfSegments(T *testing.T) {
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredRouteSegments(T, vd, "road", []gsCheck{
-		{1100000, 1200000, 7100000, 7200000, []gsPath{
-			{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000,
-				3100000, 3200000}},
-			{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000,
-				5100000, 5200000}},
-			{"three", true, locationPairs{5100000, 5200000, 6100000, 6200000,
-				7100000, 7200000}}}},
-		{7100000, 7200000, 9100000, 9200000, []gsPath{
-			{"four", true, locationPairs{7100000, 7200000, 8100000, 8200000,
-				9100000, 9200000}}}},
-	})
+	checkThreadableMapItem(T, vd.mapItems["road"],
+	miThreadCheck{mitRoute, "road", latlongType{1100000, 1200000},
+	latlongType{9100000, 9200000}, 0, 1, []latlongRefProto{{1100000, 1200000, 0, 0, 0},
+	{3100000, 3200000, 0, 0, 4},{3100000, 3200000, 0, 1, 0},{5100000, 5200000, 0, 1, 4},
+	{5100000, 5200000, 0, 2, 0},{7100000, 7200000, 0, 2, 4},{7100000, 7200000, 1, 0, 0},
+	{9100000, 9200000, 1, 0, 4}}, []any{
+		miThreadCheck{mitSegment, "roadSeg1", latlongType{1100000, 1200000},
+			latlongType{7100000, 7200000}, 0, 2, []latlongRefProto{
+			{1100000, 1200000, 0, 0, 0},{3100000, 3200000, 0, 4, 0},
+			{3100000, 3200000, 1, 0, 0},{5100000, 5200000, 1, 4, 0},
+			{5100000, 5200000, 2, 0, 0},{7100000, 7200000, 2, 4, 0}},
+			[]any{
+			miThreadCheck{mitPath, "one", latlongType{1100000, 1200000},
+				latlongType{3100000, 3200000}, 0, 4, []latlongRefProto{
+				{1100000, 1200000, 0, 0, 0},{3100000, 3200000, 4, 0, 0}},
+				[]any{1100000, 1200000, 2100000, 2200000, 3100000, 3200000}},
+			miThreadCheck{mitPath, "two", latlongType{3100000, 3200000},
+				latlongType{5100000, 5200000}, 0, 4, []latlongRefProto{
+				{3100000, 3200000, 0, 0, 0},{5100000, 5200000, 4, 0, 0}},
+				[]any{3100000, 3200000, 4100000, 4200000, 5100000, 5200000}},
+			miThreadCheck{mitPath, "three", latlongType{5100000, 5200000},
+				latlongType{7100000, 7200000}, 0, 4, []latlongRefProto{
+				{5100000, 5200000, 0, 0, 0},{7100000, 7200000, 4, 0, 0}},
+				[]any{5100000, 5200000, 6100000, 6200000, 7100000, 7200000}},
+		}},
+		miThreadCheck{mitSegment, "roadSeg2", latlongType{7100000, 7200000},
+			latlongType{9100000, 9200000}, 0, 0, []latlongRefProto{
+			{7100000, 7200000, 0, 0, 0},{9100000, 9200000, 0, 4, 0}},
+			[]any{
+			miThreadCheck{mitPath, "four", latlongType{7100000, 7200000},
+				latlongType{9100000, 9200000}, 0, 4, []latlongRefProto{
+				{7100000, 7200000, 0, 0, 0},{9100000, 9200000, 4, 0, 0}},
+				[]any{7100000, 7200000, 8100000, 8200000, 9100000, 9200000}},
+		}},
+	}})
 }
 
 
@@ -1039,18 +1407,41 @@ func Test_gatherRouteFirstSegmentFlipsSecondSegment(T *testing.T) {
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredRouteSegments(T, vd, "road", []gsCheck{
-		{1100000, 1200000, 7100000, 7200000, []gsPath{
-			{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000,
-				3100000, 3200000}},
-			{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000,
-				5100000, 5200000}},
-			{"three", true, locationPairs{5100000, 5200000, 6100000, 6200000,
-				7100000, 7200000}}}},
-		{7100000, 7200000, 9100000, 9200000, []gsPath{
-			{"four", false, locationPairs{9100000, 9200000, 8100000, 8200000,
-				7100000, 7200000}}}},
-	})
+	checkThreadableMapItem(T, vd.mapItems["road"],
+	miThreadCheck{mitRoute, "road", latlongType{1100000, 1200000},
+	latlongType{9100000, 9200000}, 0, 1, []latlongRefProto{{1100000, 1200000, 0, 0, 0},
+	{3100000, 3200000, 0, 0, 4},{3100000, 3200000, 0, 1, 0},{5100000, 5200000, 0, 1, 4},
+	{5100000, 5200000, 0, 2, 0},{7100000, 7200000, 0, 2, 4},{9100000, 9200000, 1, 0, 0},
+	{7100000, 7200000, 1, 0, 4}}, []any{
+		miThreadCheck{mitSegment, "roadSeg1", latlongType{1100000, 1200000},
+			latlongType{7100000, 7200000}, 0, 2, []latlongRefProto{
+			{1100000, 1200000, 0, 0, 0},{3100000, 3200000, 0, 4, 0},
+			{3100000, 3200000, 1, 0, 0},{5100000, 5200000, 1, 4, 0},
+			{5100000, 5200000, 2, 0, 0},{7100000, 7200000, 2, 4, 0}},
+			[]any{
+			miThreadCheck{mitPath, "one", latlongType{1100000, 1200000},
+				latlongType{3100000, 3200000}, 0, 4, []latlongRefProto{
+				{1100000, 1200000, 0, 0, 0},{3100000, 3200000, 4, 0, 0}},
+				[]any{1100000, 1200000, 2100000, 2200000, 3100000, 3200000}},
+			miThreadCheck{mitPath, "two", latlongType{3100000, 3200000},
+				latlongType{5100000, 5200000}, 0, 4, []latlongRefProto{
+				{3100000, 3200000, 0, 0, 0},{5100000, 5200000, 4, 0, 0}},
+				[]any{3100000, 3200000, 4100000, 4200000, 5100000, 5200000}},
+			miThreadCheck{mitPath, "three", latlongType{5100000, 5200000},
+				latlongType{7100000, 7200000}, 0, 4, []latlongRefProto{
+				{5100000, 5200000, 0, 0, 0},{7100000, 7200000, 4, 0, 0}},
+				[]any{5100000, 5200000, 6100000, 6200000, 7100000, 7200000}},
+		}},
+		miThreadCheck{mitSegment, "roadSeg2", latlongType{9100000, 9200000},
+			latlongType{7100000, 7200000}, 0, 0, []latlongRefProto{
+			{9100000, 9200000, 0, 0, 0},{7100000, 7200000, 0, 4, 0}},
+			[]any{
+			miThreadCheck{mitPath, "four", latlongType{9100000, 9200000},
+				latlongType{7100000, 7200000}, 0, 4, []latlongRefProto{
+				{9100000, 9200000, 0, 0, 0},{7100000, 7200000, 4, 0, 0}},
+				[]any{9100000, 9200000, 8100000, 8200000, 7100000, 7200000}},
+		}},
+	}})
 }
 
 
@@ -1089,18 +1480,41 @@ func Test_gatherRouteSecondSegmentFlipsFirstSegment(T *testing.T) {
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredRouteSegments(T, vd, "road", []gsCheck{
-		{1100000, 1200000, 7100000, 7200000, []gsPath{
-			{"one", false, locationPairs{3100000, 3200000, 2100000, 2200000,
-				1100000, 1200000}},
-			{"two", false, locationPairs{5100000, 5200000, 4100000, 4200000,
-				3100000, 3200000}},
-			{"three", false, locationPairs{7100000, 7200000, 6100000, 6200000,
-				5100000, 5200000}}}},
-		{7100000, 7200000, 9100000, 9200000, []gsPath{
-			{"four", true, locationPairs{7100000, 7200000, 8100000, 8200000,
-				9100000, 9200000}}}},
-	})
+	checkThreadableMapItem(T, vd.mapItems["road"],
+	miThreadCheck{mitRoute, "road", latlongType{1100000, 1200000},
+	latlongType{9100000, 9200000}, 0, 1, []latlongRefProto{{7100000, 7200000, 0, 0, 0},
+	{5100000, 5200000, 0, 0, 4},{5100000, 5200000, 0, 1, 0},{3100000, 3200000, 0, 1, 4},
+	{3100000, 3200000, 0, 2, 0},{1100000, 1200000, 0, 2, 4},{7100000, 7200000, 1, 0, 0},
+	{9100000, 9200000, 1, 0, 4}}, []any{
+		miThreadCheck{mitSegment, "roadSeg1", latlongType{7100000, 7200000},
+			latlongType{1100000, 1200000}, 0, 2, []latlongRefProto{
+			{7100000, 7200000, 0, 0, 0},{5100000, 5200000, 0, 4, 0},
+			{5100000, 5200000, 1, 0, 0},{3100000, 3200000, 1, 4, 0},
+			{3100000, 3200000, 2, 0, 0},{1100000, 1200000, 2, 4, 0}},
+			[]any{
+			miThreadCheck{mitPath, "three", latlongType{7100000, 7200000},
+				latlongType{5100000, 5200000}, 0, 4, []latlongRefProto{
+				{7100000, 7200000, 0, 0, 0},{5100000, 5200000, 4, 0, 0}},
+				[]any{7100000, 7200000, 6100000, 6200000, 5100000, 5200000}},
+			miThreadCheck{mitPath, "two", latlongType{5100000, 5200000},
+				latlongType{3100000, 3200000}, 0, 4, []latlongRefProto{
+				{5100000, 5200000, 0, 0, 0},{3100000, 3200000, 4, 0, 0}},
+				[]any{5100000, 5200000, 4100000, 4200000, 3100000, 3200000}},
+			miThreadCheck{mitPath, "one", latlongType{3100000, 3200000},
+				latlongType{1100000, 1200000}, 0, 4, []latlongRefProto{
+				{3100000, 3200000, 0, 0, 0},{1100000, 1200000, 4, 0, 0}},
+				[]any{3100000, 3200000, 2100000, 2200000, 1100000, 1200000}},
+		}},
+		miThreadCheck{mitSegment, "roadSeg2", latlongType{7100000, 7200000},
+			latlongType{9100000, 9200000}, 0, 0, []latlongRefProto{
+			{7100000, 7200000, 0, 0, 0},{9100000, 9200000, 0, 4, 0}},
+			[]any{
+			miThreadCheck{mitPath, "four", latlongType{7100000, 7200000},
+				latlongType{9100000, 9200000}, 0, 4, []latlongRefProto{
+				{7100000, 7200000, 0, 0, 0},{9100000, 9200000, 4, 0, 0}},
+				[]any{7100000, 7200000, 8100000, 8200000, 9100000, 9200000}},
+		}},
+	}})
 }
 
 
@@ -1139,18 +1553,41 @@ func Test_gatherRouteSecondSegmentFlipsFirstSegmentWithFlippedPath(T *testing.T)
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredRouteSegments(T, vd, "road", []gsCheck{
-		{1100000, 1200000, 7100000, 7200000, []gsPath{
-			{"one", false, locationPairs{3100000, 3200000, 2100000, 2200000,
-				1100000, 1200000}},
-			{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000,
-				5100000, 5200000}},
-			{"three", false, locationPairs{7100000, 7200000, 6100000, 6200000,
-				5100000, 5200000}}}},
-		{7100000, 7200000, 9100000, 9200000, []gsPath{
-			{"four", true, locationPairs{7100000, 7200000, 8100000, 8200000,
-				9100000, 9200000}}}},
-	})
+	checkThreadableMapItem(T, vd.mapItems["road"],
+	miThreadCheck{mitRoute, "road", latlongType{1100000, 1200000},
+	latlongType{9100000, 9200000}, 0, 1, []latlongRefProto{{7100000, 7200000, 0, 0, 0},
+	{5100000, 5200000, 0, 0, 4},{3100000, 3200000, 0, 1, 0},{5100000, 5200000, 0, 1, 4},
+	{3100000, 3200000, 0, 2, 0},{1100000, 1200000, 0, 2, 4},{7100000, 7200000, 1, 0, 0},
+	{9100000, 9200000, 1, 0, 4}}, []any{
+		miThreadCheck{mitSegment, "roadSeg1", latlongType{7100000, 7200000},
+			latlongType{1100000, 1200000}, 0, 2, []latlongRefProto{
+			{7100000, 7200000, 0, 0, 0},{5100000, 5200000, 0, 4, 0},
+			{3100000, 3200000, 1, 0, 0},{5100000, 5200000, 1, 4, 0},
+			{3100000, 3200000, 2, 0, 0},{1100000, 1200000, 2, 4, 0}},
+			[]any{
+			miThreadCheck{mitPath, "three", latlongType{7100000, 7200000},
+				latlongType{5100000, 5200000}, 0, 4, []latlongRefProto{
+				{7100000, 7200000, 0, 0, 0},{5100000, 5200000, 4, 0, 0}},
+				[]any{7100000, 7200000, 6100000, 6200000, 5100000, 5200000}},
+			miThreadCheck{mitPath, "two", latlongType{3100000, 3200000},
+				latlongType{5100000, 5200000}, 0, 4, []latlongRefProto{
+				{3100000, 3200000, 0, 0, 0},{5100000, 5200000, 4, 0, 0}},
+				[]any{3100000, 3200000, 4100000, 4200000, 5100000, 5200000}},
+			miThreadCheck{mitPath, "one", latlongType{3100000, 3200000},
+				latlongType{1100000, 1200000}, 0, 4, []latlongRefProto{
+				{3100000, 3200000, 0, 0, 0},{1100000, 1200000, 4, 0, 0}},
+				[]any{3100000, 3200000, 2100000, 2200000, 1100000, 1200000}},
+		}},
+		miThreadCheck{mitSegment, "roadSeg2", latlongType{7100000, 7200000},
+			latlongType{9100000, 9200000}, 0, 0, []latlongRefProto{
+			{7100000, 7200000, 0, 0, 0},{9100000, 9200000, 0, 4, 0}},
+			[]any{
+			miThreadCheck{mitPath, "four", latlongType{7100000, 7200000},
+				latlongType{9100000, 9200000}, 0, 4, []latlongRefProto{
+				{7100000, 7200000, 0, 0, 0},{9100000, 9200000, 4, 0, 0}},
+				[]any{7100000, 7200000, 8100000, 8200000, 9100000, 9200000}},
+		}},
+	}})
 }
 
 
@@ -1200,29 +1637,76 @@ func Test_gatherSideRouteJoiningMainRouteAtStart(T *testing.T) {
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredRouteSegments(T, vd, "road", []gsCheck{
-		{1100000, 1200000, 7100000, 7200000, []gsPath{
-			{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000,
-				3100000, 3200000}},
-			{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000,
-				5100000, 5200000}},
-			{"three", true, locationPairs{5100000, 5200000, 6100000, 6200000,
-				7100000, 7200000}}}},
-		{7100000, 7200000, 9100000, 9200000, []gsPath{
-			{"four", false, locationPairs{9100000, 9200000, 8100000, 8200000,
-				7100000, 7200000}}}},
-	})
-	checkGatheredRouteSegments(T, vd, "sideRoute", []gsCheck{
-		{1500000, 1600000, 7100000, 7200000, []gsPath{
-			{"dogleg", true, locationPairs{1500000, 1600000, 1300000, 1400000,
-				1100000, 1200000}},
-			{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000,
-				3100000, 3200000}},
-			{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000,
-				5100000, 5200000}},
-			{"three", true, locationPairs{5100000, 5200000, 6100000, 6200000,
-				7100000, 7200000}}}},
-	})
+	checkThreadableMapItem(T, vd.mapItems["road"],
+	miThreadCheck{mitRoute, "road", latlongType{1100000, 1200000},
+	latlongType{9100000, 9200000}, 0, 1, []latlongRefProto{{1100000, 1200000, 0, 0, 0},
+	{3100000, 3200000, 0, 0, 4},{3100000, 3200000, 0, 1, 0},{5100000, 5200000, 0, 1, 4},
+	{5100000, 5200000, 0, 2, 0},{7100000, 7200000, 0, 2, 4},{9100000, 9200000, 1, 0, 0},
+	{7100000, 7200000, 1, 0, 4}}, []any{
+		miThreadCheck{mitSegment, "roadSeg1", latlongType{1100000, 1200000},
+			latlongType{7100000, 7200000}, 0, 2, []latlongRefProto{
+			{1100000, 1200000, 0, 0, 0},{3100000, 3200000, 0, 4, 0},
+			{3100000, 3200000, 1, 0, 0},{5100000, 5200000, 1, 4, 0},
+			{5100000, 5200000, 2, 0, 0},{7100000, 7200000, 2, 4, 0}},
+			[]any{
+			miThreadCheck{mitPath, "one", latlongType{1100000, 1200000},
+				latlongType{3100000, 3200000}, 0, 4, []latlongRefProto{
+				{1100000, 1200000, 0, 0, 0},{3100000, 3200000, 4, 0, 0}},
+				[]any{1100000, 1200000, 2100000, 2200000, 3100000, 3200000}},
+			miThreadCheck{mitPath, "two", latlongType{3100000, 3200000},
+				latlongType{5100000, 5200000}, 0, 4, []latlongRefProto{
+				{3100000, 3200000, 0, 0, 0},{5100000, 5200000, 4, 0, 0}},
+				[]any{3100000, 3200000, 4100000, 4200000, 5100000, 5200000}},
+			miThreadCheck{mitPath, "three", latlongType{5100000, 5200000},
+				latlongType{7100000, 7200000}, 0, 4, []latlongRefProto{
+				{5100000, 5200000, 0, 0, 0},{7100000, 7200000, 4, 0, 0}},
+				[]any{5100000, 5200000, 6100000, 6200000, 7100000, 7200000}},
+		}},
+		miThreadCheck{mitSegment, "roadSeg2", latlongType{9100000, 9200000},
+			latlongType{7100000, 7200000}, 0, 0, []latlongRefProto{
+			{9100000, 9200000, 0, 0, 0},{7100000, 7200000, 0, 4, 0}},
+			[]any{
+			miThreadCheck{mitPath, "four", latlongType{9100000, 9200000},
+				latlongType{7100000, 7200000}, 0, 4, []latlongRefProto{
+				{9100000, 9200000, 0, 0, 0},{7100000, 7200000, 4, 0, 0}},
+				[]any{9100000, 9200000, 8100000, 8200000, 7100000, 7200000}},
+		}},
+	}})
+	checkThreadableMapItem(T, vd.mapItems["sideRoute"],
+	miThreadCheck{mitRoute, "sideRoute", latlongType{1500000, 1600000},
+	latlongType{7100000, 7200000}, 0, 0, []latlongRefProto{{1500000, 1600000, 0, 0, 0},
+	{1100000, 1200000, 0, 0, 4},{1100000, 1200000, 0, 1, 0},{1100000, 1200000, 0, 2, 0},
+	{3100000, 3200000, 0, 2, 4},{3100000, 3200000, 0, 3, 0},{5100000, 5200000, 0, 3, 4},
+	{5100000, 5200000, 0, 4, 0},{7100000, 7200000, 0, 4, 4}}, []any{
+		miThreadCheck{mitSegment, "leadIn", latlongType{1500000, 1600000},
+			latlongType{7100000, 7200000}, 0, 4, []latlongRefProto{
+			{1500000, 1600000, 0, 0, 0},{1100000, 1200000, 0, 4, 0},
+			{1100000, 1200000, 1, 0, 0},{1100000, 1200000, 2, 0, 0},
+			{3100000, 3200000, 2, 4, 0},{3100000, 3200000, 3, 0, 0},
+			{5100000, 5200000, 3, 4, 0},{5100000, 5200000, 4, 0, 0},
+			{7100000, 7200000, 4, 4, 0}},
+			[]any{
+			miThreadCheck{mitPath, "dogleg", latlongType{1500000, 1600000},
+				latlongType{1100000, 1200000}, 0, 4, []latlongRefProto{
+				{1500000, 1600000, 0, 0, 0},{1100000, 1200000, 4, 0, 0}},
+				[]any{1500000, 1600000, 1300000, 1400000, 1100000, 1200000}},
+			miThreadCheck{mitPoint, "$12", latlongType{1100000, 1200000},
+				latlongType{1100000, 1200000}, 0, 0, []latlongRefProto{
+				{1100000, 1200000, 0, 0, 0}}, []any{1100000, 1200000}},
+			miThreadCheck{mitPath, "one", latlongType{1100000, 1200000},
+				latlongType{3100000, 3200000}, 0, 4, []latlongRefProto{
+				{1100000, 1200000, 0, 0, 0},{3100000, 3200000, 4, 0, 0}},
+				[]any{1100000, 1200000, 2100000, 2200000, 3100000, 3200000}},
+			miThreadCheck{mitPath, "two", latlongType{3100000, 3200000},
+				latlongType{5100000, 5200000}, 0, 4, []latlongRefProto{
+				{3100000, 3200000, 0, 0, 0},{5100000, 5200000, 4, 0, 0}},
+				[]any{3100000, 3200000, 4100000, 4200000, 5100000, 5200000}},
+			miThreadCheck{mitPath, "three", latlongType{5100000, 5200000},
+				latlongType{7100000, 7200000}, 0, 4, []latlongRefProto{
+				{5100000, 5200000, 0, 0, 0},{7100000, 7200000, 4, 0, 0}},
+				[]any{5100000, 5200000, 6100000, 6200000, 7100000, 7200000}},
+		}},
+	}})
 }
 
 
@@ -1272,32 +1756,88 @@ func Test_gatherSideRouteJoiningMainRouteAtMidFirstPath(T *testing.T) {
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredRouteSegments(T, vd, "road", []gsCheck{
-		{1100000, 1200000, 7100000, 7200000, []gsPath{
-			{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000,
-				3100000, 3200000}},
-			{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000,
-				5100000, 5200000}},
-			{"three", true, locationPairs{5100000, 5200000, 6100000, 6200000,
-				7100000, 7200000}}}},
-		{7100000, 7200000, 9100000, 9200000, []gsPath{
-			{"four", false, locationPairs{9100000, 9200000, 8100000, 8200000,
-				7100000, 7200000}}}},
-	})
-	checkGatheredRouteSegments(T, vd, "sideRoute", []gsCheck{
-		{1500000, 1600000, 7100000, 7200000, []gsPath{
-			{"dogleg", true, locationPairs{1500000, 1600000, 1300000, 1400000,
-				2100000, 2200000}},
-			{"one:1", true, locationPairs{2100000, 2200000, 3100000, 3200000}},
-			{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000,
-				5100000, 5200000}},
-			{"three", true, locationPairs{5100000, 5200000, 6100000, 6200000,
-				7100000, 7200000}}}},
-	})
+	checkThreadableMapItem(T, vd.mapItems["road"],
+	miThreadCheck{mitRoute, "road", latlongType{1100000, 1200000},
+	latlongType{9100000, 9200000}, 0, 1, []latlongRefProto{{1100000, 1200000, 0, 0, 0},
+	{2100000, 2200000, 0,0, 2},{3100000, 3200000, 0, 0, 4},{3100000, 3200000, 0, 1, 0},
+	{5100000, 5200000, 0, 1, 4},{5100000, 5200000, 0, 2, 0},{7100000, 7200000, 0, 2, 4},
+	{9100000, 9200000, 1, 0, 0},{7100000, 7200000, 1, 0, 4}}, []any{
+		miThreadCheck{mitSegment, "roadSeg1", latlongType{1100000, 1200000},
+			latlongType{7100000, 7200000}, 0, 2, []latlongRefProto{
+			{1100000, 1200000, 0, 0, 0},{2100000, 2200000, 0, 2, 0},
+			{3100000, 3200000, 0, 4, 0},{3100000, 3200000, 1, 0, 0},
+			{5100000, 5200000, 1, 4, 0},{5100000, 5200000, 2, 0, 0},
+			{7100000, 7200000, 2, 4, 0}},
+			[]any{
+			miThreadCheck{mitPath, "one", latlongType{1100000, 1200000},
+				latlongType{3100000, 3200000}, 0, 4, []latlongRefProto{
+				{1100000, 1200000, 0, 0, 0},{2100000, 2200000, 2, 0, 0},
+				{3100000, 3200000, 4, 0, 0}},
+				[]any{1100000, 1200000, 2100000, 2200000, 3100000, 3200000}},
+			miThreadCheck{mitPath, "two", latlongType{3100000, 3200000},
+				latlongType{5100000, 5200000}, 0, 4, []latlongRefProto{
+				{3100000, 3200000, 0, 0, 0},{5100000, 5200000, 4, 0, 0}},
+				[]any{3100000, 3200000, 4100000, 4200000, 5100000, 5200000}},
+			miThreadCheck{mitPath, "three", latlongType{5100000, 5200000},
+				latlongType{7100000, 7200000}, 0, 4, []latlongRefProto{
+				{5100000, 5200000, 0, 0, 0},{7100000, 7200000, 4, 0, 0}},
+				[]any{5100000, 5200000, 6100000, 6200000, 7100000, 7200000}},
+		}},
+		miThreadCheck{mitSegment, "roadSeg2", latlongType{9100000, 9200000},
+			latlongType{7100000, 7200000}, 0, 0, []latlongRefProto{
+			{9100000, 9200000, 0, 0, 0},{7100000, 7200000, 0, 4, 0}},
+			[]any{
+			miThreadCheck{mitPath, "four", latlongType{9100000, 9200000},
+				latlongType{7100000, 7200000}, 0, 4, []latlongRefProto{
+				{9100000, 9200000, 0, 0, 0},{7100000, 7200000, 4, 0, 0}},
+				[]any{9100000, 9200000, 8100000, 8200000, 7100000, 7200000}},
+		}},
+	}})
+	checkThreadableMapItem(T, vd.mapItems["sideRoute"],
+	miThreadCheck{mitRoute, "sideRoute", latlongType{1500000, 1600000},
+	latlongType{7100000, 7200000}, 0, 0, []latlongRefProto{{1500000, 1600000, 0, 0, 0},
+	{2100000, 2200000, 0, 0, 4},{2100000, 2200000, 0, 1, 0},{2100000, 2200000, 0, 2, 0},
+	{3100000, 3200000, 0, 2, 2},{3100000, 3200000, 0, 3, 0},{5100000, 5200000, 0, 3, 4},
+	{5100000, 5200000, 0, 4, 0},{7100000, 7200000, 0, 4, 4}}, []any{
+		miThreadCheck{mitSegment, "leadIn", latlongType{1500000, 1600000},
+			latlongType{7100000, 7200000}, 0, 4, []latlongRefProto{
+			{1500000, 1600000, 0, 0, 0},{2100000, 2200000, 0, 4, 0},
+			{2100000, 2200000, 1, 0, 0},{2100000, 2200000, 2, 0, 0},
+			{3100000, 3200000, 2, 2, 0},{3100000, 3200000, 3, 0, 0},
+			{5100000, 5200000, 3, 4, 0},{5100000, 5200000, 4, 0, 0},
+			{7100000, 7200000, 4, 4, 0}},
+			[]any{
+			miThreadCheck{mitPath, "dogleg", latlongType{1500000, 1600000},
+				latlongType{2100000, 2200000}, 0, 4, []latlongRefProto{
+				{1500000, 1600000, 0, 0, 0},{2100000, 2200000, 4, 0, 0}},
+				[]any{1500000, 1600000, 1300000, 1400000, 2100000, 2200000}},
+			miThreadCheck{mitPoint, "$12", latlongType{2100000, 2200000},
+				latlongType{2100000, 2200000}, 0, 0, []latlongRefProto{
+				{2100000, 2200000, 0, 0, 0}}, []any{2100000, 2200000}},
+			miThreadCheck{mitPath, "one:1", latlongType{2100000, 2200000},
+				latlongType{3100000, 3200000}, 0, 2, []latlongRefProto{
+				{2100000, 2200000, 0, 0, 0},{3100000, 3200000, 2, 0, 0}},
+				[]any{2100000, 2200000, 3100000, 3200000}},
+			miThreadCheck{mitPath, "two", latlongType{3100000, 3200000},
+				latlongType{5100000, 5200000}, 0, 4, []latlongRefProto{
+				{3100000, 3200000, 0, 0, 0},{5100000, 5200000, 4, 0, 0}},
+				[]any{3100000, 3200000, 4100000, 4200000, 5100000, 5200000}},
+			miThreadCheck{mitPath, "three", latlongType{5100000, 5200000},
+				latlongType{7100000, 7200000}, 0, 4, []latlongRefProto{
+				{5100000, 5200000, 0, 0, 0},{7100000, 7200000, 4, 0, 0}},
+				[]any{5100000, 5200000, 6100000, 6200000, 7100000, 7200000}},
+		}},
+	}})
 }
 
 
 func Test_gatherSideRouteJoiningMainRouteAtEndFirstPath(T *testing.T) {
+	// This formulation is illegal under the new threading model, which avoids
+	// zero-length paths (i.e. paths which contain only one point).  The difficulty
+	// here is that the 'leadIn' segment references path 'one' at a point shared
+	// with the next path, 'two'.  This confuses the threading system.
+	// The rule to follow is that every path or segment named in a (paths) or (segments)
+	// list must contribute at least two points to the item being formed.
 	sourceText := `(layers
 		(layer ll
 			(menuitem "here")
@@ -1342,33 +1882,17 @@ func Test_gatherSideRouteJoiningMainRouteAtEndFirstPath(T *testing.T) {
 		)
 	)
 	`
-	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredRouteSegments(T, vd, "road", []gsCheck{
-		{1100000, 1200000, 7100000, 7200000, []gsPath{
-			{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000,
-				3100000, 3200000}},
-			{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000,
-				5100000, 5200000}},
-			{"three", true, locationPairs{5100000, 5200000, 6100000, 6200000,
-				7100000, 7200000}}}},
-		{7100000, 7200000, 9100000, 9200000, []gsPath{
-			{"four", false, locationPairs{9100000, 9200000, 8100000, 8200000,
-				7100000, 7200000}}}},
-	})
-	checkGatheredRouteSegments(T, vd, "sideRoute", []gsCheck{
-		{1500000, 1600000, 7100000, 7200000, []gsPath{
-			{"dogleg", true, locationPairs{1500000, 1600000, 1300000, 1400000,
-				3100000, 3200000}},
-			{"one:1", true, locationPairs{3100000, 3200000}},
-			{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000,
-				5100000, 5200000}},
-			{"three", true, locationPairs{5100000, 5200000, 6100000, 6200000,
-				7100000, 7200000}}}},
-	})
+	vd := prepareAndParseStringsIgnoreThreadingError(T, sourceText)
+	checkDeferredErrors(T, vd, "infile0:41: path two does not connect with segment leadIn " +
+		"(two is defined at infile0:14)")
+	// The case introduces too many pathologies to consider for unit tests
 }
 
 
 func Test_gatherSideRouteJoiningMainRouteAtStartSecondPath(T *testing.T) {
+	// This is the legal version of the preceding test case
+	// Test_gatherSideRouteJoiningMainRouteAtEndFirstPath.  The current test case
+	// omits the reference to path one in the leadIn segment
 	sourceText := `(layers
 		(layer ll
 			(menuitem "here")
@@ -1414,27 +1938,71 @@ func Test_gatherSideRouteJoiningMainRouteAtStartSecondPath(T *testing.T) {
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredRouteSegments(T, vd, "road", []gsCheck{
-		{1100000, 1200000, 7100000, 7200000, []gsPath{
-			{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000,
-				3100000, 3200000}},
-			{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000,
-				5100000, 5200000}},
-			{"three", true, locationPairs{5100000, 5200000, 6100000, 6200000,
-				7100000, 7200000}}}},
-		{7100000, 7200000, 9100000, 9200000, []gsPath{
-			{"four", false, locationPairs{9100000, 9200000, 8100000, 8200000,
-				7100000, 7200000}}}},
-	})
-	checkGatheredRouteSegments(T, vd, "sideRoute", []gsCheck{
-		{1500000, 1600000, 7100000, 7200000, []gsPath{
-			{"dogleg", true, locationPairs{1500000, 1600000, 1300000, 1400000,
-				3100000, 3200000}},
-			{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000,
-				5100000, 5200000}},
-			{"three", true, locationPairs{5100000, 5200000, 6100000, 6200000,
-				7100000, 7200000}}}},
-	})
+	checkThreadableMapItem(T, vd.mapItems["road"],
+	miThreadCheck{mitRoute, "road", latlongType{1100000, 1200000},
+	latlongType{9100000, 9200000}, 0, 1, []latlongRefProto{{1100000, 1200000, 0, 0, 0},
+	{3100000, 3200000, 0, 0, 4},{3100000, 3200000, 0, 1, 0},{5100000, 5200000, 0, 1, 4},
+	{5100000, 5200000, 0, 2, 0},{7100000, 7200000, 0, 2, 4},{9100000, 9200000, 1, 0, 0},
+	{7100000, 7200000, 1, 0, 4}}, []any{
+		miThreadCheck{mitSegment, "roadSeg1", latlongType{1100000, 1200000},
+			latlongType{7100000, 7200000}, 0, 2, []latlongRefProto{
+			{1100000, 1200000, 0, 0, 0},{3100000, 3200000, 0, 4, 0},
+			{3100000, 3200000, 1, 0, 0},{5100000, 5200000, 1, 4, 0},
+			{5100000, 5200000, 2, 0, 0},{7100000, 7200000, 2, 4, 0}},
+			[]any{
+			miThreadCheck{mitPath, "one", latlongType{1100000, 1200000},
+				latlongType{3100000, 3200000}, 0, 4, []latlongRefProto{
+				{1100000, 1200000, 0, 0, 0},{3100000, 3200000, 4, 0, 0}},
+				[]any{1100000, 1200000, 2100000, 2200000, 3100000, 3200000}},
+			miThreadCheck{mitPath, "two", latlongType{3100000, 3200000},
+				latlongType{5100000, 5200000}, 0, 4, []latlongRefProto{
+				{3100000, 3200000, 0, 0, 0},{5100000, 5200000, 4, 0, 0}},
+				[]any{3100000, 3200000, 4100000, 4200000, 5100000, 5200000}},
+			miThreadCheck{mitPath, "three", latlongType{5100000, 5200000},
+				latlongType{7100000, 7200000}, 0, 4, []latlongRefProto{
+				{5100000, 5200000, 0, 0, 0},{7100000, 7200000, 4, 0, 0}},
+				[]any{5100000, 5200000, 6100000, 6200000, 7100000, 7200000}},
+		}},
+		miThreadCheck{mitSegment, "roadSeg2", latlongType{9100000, 9200000},
+			latlongType{7100000, 7200000}, 0, 0, []latlongRefProto{
+			{9100000, 9200000, 0, 0, 0},{7100000, 7200000, 0, 4, 0}},
+			[]any{
+			miThreadCheck{mitPath, "four", latlongType{9100000, 9200000},
+				latlongType{7100000, 7200000}, 0, 4, []latlongRefProto{
+				{9100000, 9200000, 0, 0, 0},{7100000, 7200000, 4, 0, 0}},
+				[]any{9100000, 9200000, 8100000, 8200000, 7100000, 7200000}},
+		}},
+	}})
+	checkThreadableMapItem(T, vd.mapItems["sideRoute"],
+	miThreadCheck{mitRoute, "sideRoute", latlongType{1500000, 1600000},
+	latlongType{7100000, 7200000}, 0, 0, []latlongRefProto{{1500000, 1600000, 0, 0, 0},
+	{3100000, 3200000, 0, 0, 4},{3100000, 3200000, 0, 1, 0},{3100000, 3200000, 0, 2, 0},
+	{5100000, 5200000, 0, 2, 4},{5100000, 5200000, 0, 3, 0},{7100000, 7200000, 0, 3, 4}},
+	[]any{
+		miThreadCheck{mitSegment, "leadIn", latlongType{1500000, 1600000},
+			latlongType{7100000, 7200000}, 0, 3, []latlongRefProto{
+			{1500000, 1600000, 0, 0, 0},{3100000, 3200000, 0, 4, 0},
+			{3100000, 3200000, 1, 0, 0},{3100000, 3200000, 2, 0, 0},
+			{5100000, 5200000, 2, 4, 0},{5100000, 5200000, 3, 0, 0},
+			{7100000, 7200000, 3, 4, 0}},
+			[]any{
+			miThreadCheck{mitPath, "dogleg", latlongType{1500000, 1600000},
+				latlongType{3100000, 3200000}, 0, 4, []latlongRefProto{
+				{1500000, 1600000, 0, 0, 0},{3100000, 3200000, 4, 0, 0}},
+				[]any{1500000, 1600000, 1300000, 1400000, 3100000, 3200000}},
+			miThreadCheck{mitPoint, "joinpoint", latlongType{3100000, 3200000},
+				latlongType{3100000, 3200000}, 0, 0, []latlongRefProto{
+				{3100000, 3200000, 0, 0, 0}}, []any{3100000, 3200000}},
+			miThreadCheck{mitPath, "two", latlongType{3100000, 3200000},
+				latlongType{5100000, 5200000}, 0, 4, []latlongRefProto{
+				{3100000, 3200000, 0, 0, 0},{5100000, 5200000, 4, 0, 0}},
+				[]any{3100000, 3200000, 4100000, 4200000, 5100000, 5200000}},
+			miThreadCheck{mitPath, "three", latlongType{5100000, 5200000},
+				latlongType{7100000, 7200000}, 0, 4, []latlongRefProto{
+				{5100000, 5200000, 0, 0, 0},{7100000, 7200000, 4, 0, 0}},
+				[]any{5100000, 5200000, 6100000, 6200000, 7100000, 7200000}},
+		}},
+	}})
 }
 
 
@@ -1491,29 +2059,94 @@ func Test_gatherSideRouteJoiningTwoDoglegs(T *testing.T) {
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredRouteSegments(T, vd, "road", []gsCheck{
-		{1100000, 1200000, 7100000, 7200000, []gsPath{
-			{"one", true, locationPairs{1100000, 1200000, 2100000, 2200000,
-				3100000, 3200000}},
-			{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000,
-				5100000, 5200000}},
-			{"three", true, locationPairs{5100000, 5200000, 6100000, 6200000,
-				7100000, 7200000}}}},
-		{7100000, 7200000, 9100000, 9200000, []gsPath{
-			{"four", false, locationPairs{9100000, 9200000, 8100000, 8200000,
-				7100000, 7200000}}}},
-	})
-	checkGatheredRouteSegments(T, vd, "sideRoute", []gsCheck{
-		{1500000, 1600000, 6500000, 6600000, []gsPath{
-			{"toHouse1", true, locationPairs{1500000, 1600000, 1300000, 1400000,
-				2100000, 2200000}},
-			{"one:1", true, locationPairs{2100000, 2200000, 3100000, 3200000}},
-			{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000,
-				5100000, 5200000}},
-			{"three:1", true, locationPairs{5100000, 5200000, 6100000, 6200000}},
-			{"toHouse2", true, locationPairs{6100000, 6200000, 6300000, 6400000,
-				6500000, 6600000}}}},
-	})
+	checkThreadableMapItem(T, vd.mapItems["road"],
+	miThreadCheck{mitRoute, "road", latlongType{1100000, 1200000},
+	latlongType{9100000, 9200000}, 0, 1, []latlongRefProto{{1100000, 1200000, 0, 0, 0},
+	{2100000, 2200000, 0, 0, 2},{3100000, 3200000, 0, 0, 4},{3100000, 3200000, 0, 1, 0},
+	{5100000, 5200000, 0, 1, 4},{5100000, 5200000, 0, 2, 0},{6100000, 6200000, 0, 2, 2},
+	{7100000, 7200000, 0, 2, 4},{9100000, 9200000, 1, 0, 0},{7100000, 7200000, 1, 0, 4}},
+	[]any{
+		miThreadCheck{mitSegment, "roadSeg1", latlongType{1100000, 1200000},
+			latlongType{7100000, 7200000}, 0, 2, []latlongRefProto{
+			{1100000, 1200000, 0, 0, 0},{2100000, 2200000, 0, 2, 0},
+			{3100000, 3200000, 0, 4, 0},{3100000, 3200000, 1, 0, 0},
+			{5100000, 5200000, 1, 4, 0},{5100000, 5200000, 2, 0, 0},
+			{6100000, 6200000, 2, 2, 0},{7100000, 7200000, 2, 4, 0}},
+			[]any{
+			miThreadCheck{mitPath, "one", latlongType{1100000, 1200000},
+				latlongType{3100000, 3200000}, 0, 4, []latlongRefProto{
+				{1100000, 1200000, 0, 0, 0},{2100000, 2200000, 2, 0, 0},
+				{3100000, 3200000, 4, 0, 0}},
+				[]any{1100000, 1200000, 2100000, 2200000, 3100000, 3200000}},
+			miThreadCheck{mitPath, "two", latlongType{3100000, 3200000},
+				latlongType{5100000, 5200000}, 0, 4, []latlongRefProto{
+				{3100000, 3200000, 0, 0, 0},{5100000, 5200000, 4, 0, 0}},
+				[]any{3100000, 3200000, 4100000, 4200000, 5100000, 5200000}},
+			miThreadCheck{mitPath, "three", latlongType{5100000, 5200000},
+				latlongType{7100000, 7200000}, 0, 4, []latlongRefProto{
+				{5100000, 5200000, 0, 0, 0},{6100000, 6200000, 2, 0, 0},
+				{7100000, 7200000, 4, 0, 0}},
+				[]any{5100000, 5200000, 6100000, 6200000, 7100000, 7200000}},
+		}},
+		miThreadCheck{mitSegment, "roadSeg2", latlongType{9100000, 9200000},
+			latlongType{7100000, 7200000}, 0, 0, []latlongRefProto{
+			{9100000, 9200000, 0, 0, 0},{7100000, 7200000, 0, 4, 0}},
+			[]any{
+			miThreadCheck{mitPath, "four", latlongType{9100000, 9200000},
+				latlongType{7100000, 7200000}, 0, 4, []latlongRefProto{
+				{9100000, 9200000, 0, 0, 0},{7100000, 7200000, 4, 0, 0}},
+				[]any{9100000, 9200000, 8100000, 8200000, 7100000, 7200000}},
+		}},
+	}})
+	checkThreadableMapItem(T, vd.mapItems["sideRoute"],
+	miThreadCheck{mitRoute, "sideRoute", latlongType{1500000, 1600000},
+	latlongType{6500000, 6600000}, 0, 0, []latlongRefProto{{1500000, 1600000, 0, 0, 0},
+	{2100000, 2200000, 0, 0, 4},{2100000, 2200000, 0, 1, 0},{2100000, 2200000, 0, 2, 0},
+	{3100000, 3200000, 0, 2, 2},{3100000, 3200000, 0, 3, 0},{5100000, 5200000, 0, 3, 4},
+	{5100000, 5200000, 0, 4, 0},{6100000, 6200000, 0, 4, 2},{6100000, 6200000, 0, 5, 0},
+	{6100000, 6200000, 0, 6, 0},{6500000, 6600000, 0, 6, 4},{6500000, 6600000, 0, 7, 0}},
+	[]any{
+		miThreadCheck{mitSegment, "house1_to_house2", latlongType{1500000, 1600000},
+			latlongType{6500000, 6600000}, 0, 7, []latlongRefProto{
+			{1500000, 1600000, 0, 0, 0},{2100000, 2200000, 0, 4, 0},
+			{2100000, 2200000, 1, 0, 0},{2100000, 2200000, 2, 0, 0},
+			{3100000, 3200000, 2, 2, 0},{3100000, 3200000, 3, 0, 0},
+			{5100000, 5200000, 3, 4, 0},{5100000, 5200000, 4, 0, 0},
+			{6100000, 6200000, 4, 2, 0},{6100000, 6200000, 5, 0, 0},
+			{6100000, 6200000, 6, 0, 0},{6500000, 6600000, 6, 4, 0},
+			{6500000, 6600000, 7, 0, 0}},
+			[]any{
+			miThreadCheck{mitPath, "toHouse1", latlongType{1500000, 1600000},
+				latlongType{2100000, 2200000}, 0, 4, []latlongRefProto{
+				{1500000, 1600000, 0, 0, 0},{2100000, 2200000, 4, 0, 0}},
+				[]any{1500000, 1600000, 1300000, 1400000, 2100000, 2200000}},
+			miThreadCheck{mitPoint, "turn1", latlongType{2100000, 2200000},
+				latlongType{2100000, 2200000}, 0, 0, []latlongRefProto{
+				{2100000, 2200000, 0, 0, 0}}, []any{2100000, 2200000}},
+			miThreadCheck{mitPath, "one:1", latlongType{2100000, 2200000},
+				latlongType{3100000, 3200000}, 0, 2, []latlongRefProto{
+				{2100000, 2200000, 0, 0, 0},{3100000, 3200000, 2, 0, 0}},
+				[]any{2100000, 2200000, 3100000, 3200000}},
+			miThreadCheck{mitPath, "two", latlongType{3100000, 3200000},
+				latlongType{5100000, 5200000}, 0, 4, []latlongRefProto{
+				{3100000, 3200000, 0, 0, 0},{5100000, 5200000, 4, 0, 0}},
+				[]any{3100000, 3200000, 4100000, 4200000, 5100000, 5200000}},
+			miThreadCheck{mitPath, "three:1", latlongType{5100000, 5200000},
+				latlongType{6100000, 6200000}, 0, 2, []latlongRefProto{
+				{5100000, 5200000, 0, 0, 0},{6100000, 6200000, 2, 0, 0}},
+				[]any{5100000, 5200000, 6100000, 6200000}},
+			miThreadCheck{mitPoint, "turn2", latlongType{6100000, 6200000},
+				latlongType{6100000, 6200000}, 0, 0, []latlongRefProto{
+				{6100000, 6200000, 0, 0, 0}}, []any{6100000, 6200000}},
+			miThreadCheck{mitPath, "toHouse2", latlongType{6100000, 6200000},
+				latlongType{6500000, 6600000}, 0, 4, []latlongRefProto{
+				{6100000, 6200000, 0, 0, 0},{6500000, 6600000, 4, 0, 0}},
+				[]any{6100000, 6200000, 6300000, 6400000, 6500000, 6600000}},
+			miThreadCheck{mitMarker, "house2", latlongType{6500000, 6600000},
+				latlongType{6500000, 6600000}, 0, 0, []latlongRefProto{
+				{6500000, 6600000, 0, 0, 0}}, []any{6500000, 6600000}},
+		}},
+	}})
 }
 
 
@@ -1570,28 +2203,93 @@ func Test_gatherSideRouteJoiningTwoDoglegsReversedMainPath(T *testing.T) {
 	)
 	`
 	vd := prepareAndParseStrings(T, sourceText)
-	checkGatheredRouteSegments(T, vd, "road", []gsCheck{
-		{1100000, 1200000, 7100000, 7200000, []gsPath{
-			{"one", false, locationPairs{3100000, 3200000, 2100000, 2200000,
-				1100000, 1200000}},
-			{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000,
-				5100000, 5200000}},
-			{"three", true, locationPairs{5100000, 5200000, 6100000, 6200000,
-				7100000, 7200000}}}},
-		{7100000, 7200000, 9100000, 9200000, []gsPath{
-			{"four", false, locationPairs{9100000, 9200000, 8100000, 8200000,
-				7100000, 7200000}}}},
-	})
-	checkGatheredRouteSegments(T, vd, "sideRoute", []gsCheck{
-		{1500000, 1600000, 6500000, 6600000, []gsPath{
-			{"toHouse1", true, locationPairs{1500000, 1600000, 1300000, 1400000,
-				2100000, 2200000}},
-			{"one:1", false, locationPairs{3100000, 3200000, 2100000, 2200000}},
-			{"two", true, locationPairs{3100000, 3200000, 4100000, 4200000,
-				5100000, 5200000}},
-			{"three:1", true, locationPairs{5100000, 5200000, 6100000, 6200000}},
-			{"toHouse2", true, locationPairs{6100000, 6200000, 6300000, 6400000,
-				6500000, 6600000}}}},
-	})
+	checkThreadableMapItem(T, vd.mapItems["road"],
+	miThreadCheck{mitRoute, "road", latlongType{1100000, 1200000},
+	latlongType{9100000, 9200000}, 0, 1, []latlongRefProto{{3100000, 3200000, 0, 0, 0},
+	{2100000, 2200000, 0, 0, 2},{1100000, 1200000, 0, 0, 4},{3100000, 3200000, 0, 1, 0},
+	{5100000, 5200000, 0, 1, 4},{5100000, 5200000, 0, 2, 0},{6100000, 6200000, 0, 2, 2},
+	{7100000, 7200000, 0, 2, 4},{9100000, 9200000, 1, 0, 0},{7100000, 7200000, 1, 0, 4}},
+	[]any{
+		miThreadCheck{mitSegment, "roadSeg1", latlongType{1100000, 1200000},
+			latlongType{7100000, 7200000}, 0, 2, []latlongRefProto{
+			{3100000, 3200000, 0, 0, 0},{2100000, 2200000, 0, 2, 0},
+			{1100000, 1200000, 0, 4, 0},{3100000, 3200000, 1, 0, 0},
+			{5100000, 5200000, 1, 4, 0},{5100000, 5200000, 2, 0, 0},
+			{6100000, 6200000, 2, 2, 0},{7100000, 7200000, 2, 4, 0}},
+			[]any{
+			miThreadCheck{mitPath, "one", latlongType{3100000, 3200000},
+				latlongType{1100000, 1200000}, 0, 4, []latlongRefProto{
+				{3100000, 3200000, 0, 0, 0},{2100000, 2200000, 2, 0, 0},
+				{1100000, 1200000, 4, 0, 0}},
+				[]any{3100000, 3200000, 2100000, 2200000, 1100000, 1200000}},
+			miThreadCheck{mitPath, "two", latlongType{3100000, 3200000},
+				latlongType{5100000, 5200000}, 0, 4, []latlongRefProto{
+				{3100000, 3200000, 0, 0, 0},{5100000, 5200000, 4, 0, 0}},
+				[]any{3100000, 3200000, 4100000, 4200000, 5100000, 5200000}},
+			miThreadCheck{mitPath, "three", latlongType{5100000, 5200000},
+				latlongType{7100000, 7200000}, 0, 4, []latlongRefProto{
+				{5100000, 5200000, 0, 0, 0},{6100000, 6200000, 2, 0, 0},
+				{7100000, 7200000, 4, 0, 0}},
+				[]any{5100000, 5200000, 6100000, 6200000, 7100000, 7200000}},
+		}},
+		miThreadCheck{mitSegment, "roadSeg2", latlongType{9100000, 9200000},
+			latlongType{7100000, 7200000}, 0, 0, []latlongRefProto{
+			{9100000, 9200000, 0, 0, 0},{7100000, 7200000, 0, 4, 0}},
+			[]any{
+			miThreadCheck{mitPath, "four", latlongType{9100000, 9200000},
+				latlongType{7100000, 7200000}, 0, 4, []latlongRefProto{
+				{9100000, 9200000, 0, 0, 0},{7100000, 7200000, 4, 0, 0}},
+				[]any{9100000, 9200000, 8100000, 8200000, 7100000, 7200000}},
+		}},
+	}})
+	checkThreadableMapItem(T, vd.mapItems["sideRoute"],
+	miThreadCheck{mitRoute, "sideRoute", latlongType{1500000, 1600000},
+	latlongType{6500000, 6600000}, 0, 0, []latlongRefProto{{1500000, 1600000, 0, 0, 0},
+	{2100000, 2200000, 0, 0, 4},{2100000, 2200000, 0, 1, 0},{3100000, 3200000, 0, 2, 0},
+	{2100000, 2200000, 0, 2, 2},{3100000, 3200000, 0, 3, 0},{5100000, 5200000, 0, 3, 4},
+	{5100000, 5200000, 0, 4, 0},{6100000, 6200000, 0, 4, 2},{6100000, 6200000, 0, 5, 0},
+	{6100000, 6200000, 0, 6, 0},{6500000, 6600000, 0, 6, 4},{6500000, 6600000, 0, 7, 0}},
+	[]any{
+		miThreadCheck{mitSegment, "house1_to_house2", latlongType{1500000, 1600000},
+			latlongType{6500000, 6600000}, 0, 7, []latlongRefProto{
+			{1500000, 1600000, 0, 0, 0},{2100000, 2200000, 0, 4, 0},
+			{2100000, 2200000, 1, 0, 0},{3100000, 3200000, 2, 0, 0},
+			{2100000, 2200000, 2, 2, 0},{3100000, 3200000, 3, 0, 0},
+			{5100000, 5200000, 3, 4, 0},{5100000, 5200000, 4, 0, 0},
+			{6100000, 6200000, 4, 2, 0},{6100000, 6200000, 5, 0, 0},
+			{6100000, 6200000, 6, 0, 0},{6500000, 6600000, 6, 4, 0},
+			{6500000, 6600000, 7, 0, 0}},
+			[]any{
+			miThreadCheck{mitPath, "toHouse1", latlongType{1500000, 1600000},
+				latlongType{2100000, 2200000}, 0, 4, []latlongRefProto{
+				{1500000, 1600000, 0, 0, 0},{2100000, 2200000, 4, 0, 0}},
+				[]any{1500000, 1600000, 1300000, 1400000, 2100000, 2200000}},
+			miThreadCheck{mitPoint, "turn1", latlongType{2100000, 2200000},
+				latlongType{2100000, 2200000}, 0, 0, []latlongRefProto{
+				{2100000, 2200000, 0, 0, 0}}, []any{2100000, 2200000}},
+			miThreadCheck{mitPath, "one:1", latlongType{3100000, 3200000},
+				latlongType{2100000, 2200000}, 0, 2, []latlongRefProto{
+				{3100000, 3200000, 0, 0, 0},{2100000, 2200000, 2, 0, 0}},
+				[]any{3100000, 3200000, 2100000, 2200000}},
+			miThreadCheck{mitPath, "two", latlongType{3100000, 3200000},
+				latlongType{5100000, 5200000}, 0, 4, []latlongRefProto{
+				{3100000, 3200000, 0, 0, 0},{5100000, 5200000, 4, 0, 0}},
+				[]any{3100000, 3200000, 4100000, 4200000, 5100000, 5200000}},
+			miThreadCheck{mitPath, "three:1", latlongType{5100000, 5200000},
+				latlongType{6100000, 6200000}, 0, 2, []latlongRefProto{
+				{5100000, 5200000, 0, 0, 0},{6100000, 6200000, 2, 0, 0}},
+				[]any{5100000, 5200000, 6100000, 6200000}},
+			miThreadCheck{mitPoint, "turn2", latlongType{6100000, 6200000},
+				latlongType{6100000, 6200000}, 0, 0, []latlongRefProto{
+				{6100000, 6200000, 0, 0, 0}}, []any{6100000, 6200000}},
+			miThreadCheck{mitPath, "toHouse2", latlongType{6100000, 6200000},
+				latlongType{6500000, 6600000}, 0, 4, []latlongRefProto{
+				{6100000, 6200000, 0, 0, 0},{6500000, 6600000, 4, 0, 0}},
+				[]any{6100000, 6200000, 6300000, 6400000, 6500000, 6600000}},
+			miThreadCheck{mitMarker, "house2", latlongType{6500000, 6600000},
+				latlongType{6500000, 6600000}, 0, 0, []latlongRefProto{
+				{6500000, 6600000, 0, 0, 0}}, []any{6500000, 6600000}},
+		}},
+	}})
 }
 

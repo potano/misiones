@@ -4,7 +4,6 @@
 package vectordata
 
 import (
-	"fmt"
 	"sort"
 	"strings"
 
@@ -20,6 +19,7 @@ type styler struct {
 	referencedStyles []cssPropertyMap
 	referencedStyleMap map[string]int
 	referencedStyleMapByContent map[string]int
+	sortedStyleMap map[int]int
 }
 
 
@@ -132,25 +132,39 @@ func (sty *styler) registerReferencedStyleContents(properties cssPropertyMap) in
 	return rsX
 }
 
-func (sty *styler) generateJs() string {
-	if len(sty.referencedStyles) < 2 {
-		return ""
+func (sty *styler) serializeStyles(jsg jsGenerator) {
+	sty.sortedStyleMap = make(map[int]int, len(sty.referencedStyles))
+	styleSort := make([]struct{key string; rsIndex int}, 0, len(sty.referencedStyles))
+	for key, value := range sty.referencedStyleMapByContent {
+		styleSort = append(styleSort, struct{key string; rsIndex int}{key, value})
 	}
-	blobs := make([]string, len(sty.referencedStyles) - 1)
-	for i, props := range sty.referencedStyles[1:] {
+	sort.Slice(styleSort, func (i, j int) bool { return styleSort[i].key < styleSort[j].key })
+	for ind, datum := range styleSort {
+		sty.sortedStyleMap[datum.rsIndex] = ind + 1
+		props := sty.referencedStyles[datum.rsIndex]
 		parts := make([]string, 0, len(props))
 		for k, v := range props {
 			parts = append(parts, "\"" + k + "\":" + v.jsonForm())
 		}
 		sort.Strings(parts)
-		blobs[i] = formStyleName(i+1) + "={" + strings.Join(parts, ",") + "}"
+		jsg.styles.addEntry("{" + strings.Join(parts, ",") + "}")
 	}
-	return "var " + strings.Join(blobs, ",")
 }
 
-func formStyleName(styleIndex int) string {
-	return fmt.Sprintf("$s%d", styleIndex)
+func (sty *styler) styleIndex(node mapItemType) int {
+	style, attestation := node.styleAndAttestation()
+	if style == nil && attestation == nil {
+		return 0
+	}
+	var val int
+	if attestation != nil {
+		val = attestation.resolvedStyleIndex
+	} else if style != nil {
+		val = style.resolvedStyleIndex
+	}
+	return sty.sortedStyleMap[val]
 }
+
 
 
 
@@ -163,12 +177,9 @@ type mapStyleType struct {
 func newMapStyle(doc *VectorData, parent mapItemType, listType, listName string,
 		source sexp.ValueSource) (mapItemType, error) {
 	ms := &mapStyleType{}
+	ms.itemType = mitStyle
 	ms.source = source
 	return ms, nil
-}
-
-func (ms *mapStyleType) ItemType() int {
-	return mitStyle
 }
 
 func (ms *mapStyleType) addScalars(targetName string, scalars []sexp.LispScalar) error {

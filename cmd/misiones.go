@@ -62,10 +62,17 @@ func main() {
 	if err != nil {
 		fatal(err.Error())
 	}
-	if !relaxRouteCheck {
-		err = vd.CheckAndReformRoutes()
-		if err != nil {
-			fatal(err.Error())
+	err = vd.CheckAndReformRoutes()
+	if err != nil {
+		fatal(err.Error())
+	}
+	errs := vd.DeferredErrors()
+	if len(errs) > 0 {
+		for _, err := range errs {
+			fmt.Fprintln(os.Stderr, err.Error())
+		}
+		if !relaxRouteCheck {
+			fatal("Exiting with %d error(s)", len(errs))
 		}
 	}
 

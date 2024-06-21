@@ -15,12 +15,12 @@ func (vd *VectorData) DescribeNodes(indent string) string {
 
 
 func summarizeMapItem(pad string, item mapItemType) string {
-	return fmt.Sprintf("%s%s '%s'", pad, typeMapToName[item.ItemType()], item.Name())
+	return fmt.Sprintf("%s%s '%s'", pad, item.ItemTypeString(), item.Name())
 }
 
 func describeMapItem(pad, indent string, item mapItemType) string {
 	lines := []string{
-		fmt.Sprintf("%s→%s '%s' @ %s", pad, typeMapToName[item.ItemType()], item.Name(),
+		fmt.Sprintf("%s→%s '%s' @ %s", pad, item.ItemTypeString(), item.Name(),
 			item.Source().String())}
 	var children []mapItemType
 	padpad := pad + "    "
@@ -67,16 +67,11 @@ func describeMapItem(pad, indent string, item mapItemType) string {
 			lines = append(lines, padpad + "html: '" + stringUpTo(25, item.html) + "'")
 		}
 		describeLocation(&lines, padpad, item.location)
-	case *mapRouteType:
+	case *mapRouteOrSegmentType:
 		describePopup(&lines, padpad, item.popup)
 		describeStyle(&lines, padpad, item.style)
 		describeAttestation(&lines, padpad, item.attestation)
-		children = item.segments
-	case *mapSegmentType:
-		describePopup(&lines, padpad, item.popup)
-		describeStyle(&lines, padpad, item.style)
-		describeAttestation(&lines, padpad, item.attestation)
-		children = item.paths
+		children = item.children
 	default:
 		tp := item.ItemType()
 		panic(fmt.Sprintf("describing unexpected type %s (%d)", typeMapToName[tp], tp))

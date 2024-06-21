@@ -46,3 +46,22 @@ func MetersInPath(path []float64) float64 {
 	return accum
 }
 
+
+/** Computes length in meters between pairs of points; returns a slice of distances
+ */
+func MetersBetweenPointPairs(pairs []float64) []float64 {
+	if len(pairs) < 4 {
+		return []float64{}
+	}
+	steps := make([]float64, (len(pairs) >> 1) - 1)
+	prevLat, prevLong := pairs[0] * DEG_TO_RADIANS, pairs[1] * DEG_TO_RADIANS
+	o := 0
+	for i := 2; i < len(pairs) - 1; i += 2 {
+		lat, long := pairs[i] * DEG_TO_RADIANS, pairs[i+1] * DEG_TO_RADIANS
+		steps[o] = MetersBetweenPoints(prevLat, prevLong, lat, long)
+		o++
+		prevLat, prevLong = lat, long
+	}
+	return steps
+}
+

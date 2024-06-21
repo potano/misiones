@@ -9,7 +9,6 @@ import (
 
 type map_referenceAggregateType struct {
 	mapItemCore
-	itemType int
 	parentName string
 	names []sexp.LispScalar
 	targets []mapItemType
@@ -30,10 +29,6 @@ func newMap_referenceAggregate(doc *VectorData, parent mapItemType, listType, li
 	return mr, nil
 }
 
-func (mr *map_referenceAggregateType) ItemType() int {
-	return mr.itemType
-}
-
 func (mr *map_referenceAggregateType) addScalars(targetName string,
 		scalars []sexp.LispScalar) error {
 	mr.names = scalars
@@ -49,9 +44,9 @@ func (mr *map_referenceAggregateType) resolveTargets(doc *VectorData) error {
 		acceptable = []int{mitFeature, mitMarker, mitPoint, mitPath, mitPolygon,
 			mitRectangle, mitCircle, mitRoute, mitSegment}
 	case mitPaths:
-		acceptable = []int{mitPath, mitPoint, mitMarker, mitCircle}
+		acceptable = []int{mitPath, mitPoint, mitMarker, mitCircle, mitSegment, mitRoute}
 	case mitSegments:
-		acceptable = []int{mitSegment, mitPoint, mitMarker, mitCircle}
+		acceptable = []int{mitSegment, mitPoint, mitMarker, mitCircle, mitRoute}
 	case mitRouteSegments:
 		acceptable = []int{mitRoute, mitPoint, mitMarker, mitCircle}
 	}
@@ -83,7 +78,7 @@ func (mr *map_referenceAggregateType) resolveTargets(doc *VectorData) error {
 				return err
 			}
 		} else {
-			target = &mapItemCore{name, scalar.Source(), nil}
+			target = &mapItemCore{name, 0, scalar.Source(), nil}
 		}
 		mr.targets[i] = target
 	}
@@ -130,7 +125,7 @@ func (mr *map_referenceAggregateType) postcheckRouteSegments(doc *VectorData) er
 	}
 	routeName := mr.names[0]
 	item := mr.targets[0]
-	if _, is := item.(*mapRouteType); !is {
+	if item.ItemType() != mitRoute {
 		return mr.Error("%s is not a route", routeName)
 	}
 	newTargets = append(newTargets, item)
@@ -157,6 +152,8 @@ func (mr *map_referenceAggregateType) postcheckRouteSegments(doc *VectorData) er
 	if len(newTargets) != 3 {
 		return mr.Error("expected exactly two route endpoints, got %d", len(newTargets))
 	}
+	// Place the endpoints before and after the route
+	newTargets[0], newTargets[1] = newTargets[1], newTargets[0]
 	mr.targets = newTargets
 	return nil
 }

@@ -98,12 +98,9 @@ type mapAttestationType struct {
 func newMapAttestation(doc *VectorData, parent mapItemType, listType, listName string,
 		source sexp.ValueSource) (mapItemType, error) {
 	ms := &mapAttestationType{}
+	ms.itemType = mitAttestation
 	ms.source = source
 	return ms, nil
-}
-
-func (ma *mapAttestationType) ItemType() int {
-	return mitAttestation
 }
 
 func (ma *mapAttestationType) addScalars(targetName string, scalars []sexp.LispScalar) error {

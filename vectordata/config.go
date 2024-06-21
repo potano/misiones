@@ -21,14 +21,11 @@ func newMapConfig(doc *VectorData, parent mapItemType, listType, listName string
 		return nil, source.Error("duplicate config section")
 	}
 	mc := &mapConfigType{doc: doc}
+	mc.itemType = mitConfig
 	mc.source = source
 	doc.styler = newStyler(doc)
 	doc.attester = newAttester(doc)
 	return mc, nil
-}
-
-func (mc *mapConfigType) ItemType() int {
-	return mitConfig
 }
 
 func (mc *mapConfigType) setConfigurationItem(newChild mapItemType) error {
@@ -52,7 +49,6 @@ func (mc *mapConfigType) setConfigurationItem(newChild mapItemType) error {
 
 type mapStyleConfigType struct {
 	mapItemCore
-	itemType int
 	properties cssPropertyMap
 }
 
@@ -63,10 +59,6 @@ func newMapStyleConfig(doc *VectorData, parent mapItemType, listType, listName s
 	ms.name = listName
 	ms.itemType = nameToTypeMap[listType]
 	return ms, nil
-}
-
-func (mc *mapStyleConfigType) ItemType() int {
-	return mc.itemType
 }
 
 func (mc *mapStyleConfigType) addScalars(targetName string, scalars []sexp.LispScalar) error {
@@ -182,11 +174,8 @@ func newMapAttestationType(doc *VectorData, parent mapItemType, listType, listNa
 	ma := &mapAttestationTypeType{}
 	ma.source = source
 	ma.name = listName
+	ma.itemType = mitAttestationType
 	return ma, nil
-}
-
-func (ma *mapAttestationTypeType) ItemType() int {
-	return mitAttestationType
 }
 
 func (ma *mapAttestationTypeType) addScalars(targetName string, scalars []sexp.LispScalar) error {
@@ -229,11 +218,8 @@ func newMapLengthUnit(doc *VectorData, parent mapItemType, listType, listName st
 	ml := &mapLengthUnitType{}
 	ml.source = source
 	ml.name = listName
+	ml.itemType = mitLengthUnit
 	return ml, nil
-}
-
-func (ml *mapLengthUnitType) ItemType() int {
-	return mitLengthUnit
 }
 
 func (ml *mapLengthUnitType) addScalars(targetName string, scalars []sexp.LispScalar) error {

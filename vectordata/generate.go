@@ -4,141 +4,245 @@
 package vectordata
 
 import (
+	"fmt"
 	"strings"
 	"strconv"
 )
 
+
 func (vd *VectorData) GenerateJs() (string, error) {
+	json, err := vd.generateJson()
+	return "allData=" + json, err
+}
+
+func (vd *VectorData) generateJson() (string, error) {
 	if !vd.styler.styleCheckRun() {
 		err := vd.CheckInStylesAndAttestations()
 		if err != nil {
 			return "", err
 		}
 	}
-	var blobs []string
-	if vd.styler != nil {
-		blobs = append(blobs, vd.styler.generateJs())
+	jsg := jsGenerator{
+		vd: vd,
+		styles: newGenGroup("styles", len(vd.styler.referencedStyles)),
+		menuitems: newGenGroup("menuitems", 10),
+		texts: newGenGroup("texts", 30),
+		features: newGenGroup("features", len(vd.mapItems)),
+		points: newPointsGroup("points", len(vd.mapItems)),
 	}
-	for _, name := range vd.inDependencyOrder {
-		obj := vd.mapItems[name]
-		if len(obj.Referrers()) > 1 && obj.ItemType() != mitPoint {
-			blobs = append(blobs, "var " + obj.Name() + "=" + obj.generateJs())
+	if vd.styler != nil {
+		jsg.styles.addEntry("0")
+		vd.styler.serializeStyles(jsg)
+	}
+	jsg.texts.addEntry("0")
+	err := jsg.serializeFromRoot()
+	if err != nil {
+		return "", err
+	}
+	blobs := []string{jsg.styles.json(), jsg.menuitems.json(), jsg.texts.json(),
+		jsg.features.json(), jsg.points.json()}
+	return "{" + strings.Join(blobs, ",") + "}", nil
+}
+
+
+
+type jsGenerator struct {
+	vd *VectorData
+	styles, menuitems, texts, features *genGroup
+	points *pointsGroup
+}
+
+type genGroup struct {
+	key string
+	blobs []string
+	indices map[string]int
+}
+
+func newGenGroup(key string, initSize int) *genGroup {
+	gg := &genGroup{key, make([]string, 0, initSize + 1), make(map[string]int, initSize)}
+	return gg
+}
+
+func (gg *genGroup) allocEntry() int {
+	gg.blobs = append(gg.blobs, "")
+	return len(gg.blobs) - 1
+}
+
+func (gg *genGroup) allocEntryWithKey(key string) int {
+	index := len(gg.blobs)
+	gg.blobs = append(gg.blobs, "")
+	gg.indices[key] = index
+	return index
+}
+
+func (gg *genGroup) index(key string) (int, bool) {
+	i, b := gg.indices[key]
+	return i, b
+}
+
+func (gg *genGroup) addEntry(text string) int {
+	gg.blobs = append(gg.blobs, text)
+	return len(gg.blobs) - 1
+}
+
+func (gg *genGroup) addStringWithKey(key, text string) int {
+	index, exists := gg.indices[key]
+	if exists {
+		return index
+	}
+	index = len(gg.blobs)
+	gg.blobs = append(gg.blobs, strconv.Quote(text))
+	gg.indices[key] = index
+	return index
+}
+
+func (gg *genGroup) setEntry(index int, text string) {
+	gg.blobs[index] = text
+}
+
+func (gg *genGroup) setJsObject(index int, args ...any) {
+	gg.setEntry(index, generateJsObject(args...))
+}
+
+func (gg *genGroup) setAll(all []string) {
+	gg.blobs = all
+}
+
+func (gg *genGroup) json() string {
+	return "\"" + gg.key + "\":[" + strings.Join(gg.blobs, ",") + "]"
+}
+
+
+type pointsGroup = genGroup
+
+func newPointsGroup(key string, initSize int) *pointsGroup {
+	initSize *= 2 * 20
+	return &pointsGroup{key, make([]string, 0, initSize), make(map[string]int, initSize)}
+}
+
+func (pg *pointsGroup) addPoints(name string, pairs locationPairs) int {
+	index := len(pg.blobs)
+	slice := make([]string, len(pairs))
+	for i, v := range pairs {
+		slice[i] = v.String()
+	}
+	pg.blobs = append(pg.blobs, slice...)
+	pg.indices[name] = index
+	return index
+}
+
+
+
+
+
+func (jsg jsGenerator) serializeFromRoot() error {
+	for _, item := range jsg.vd.layersRoot.layers {
+		index := jsg.menuitems.allocEntry()
+		features, err := jsg.resolveFeatures(item.features)
+		if err != nil {
+			return err
+		}
+		jsg.menuitems.setJsObject(index, "menuitem", item.menuitem, "f", features)
+	}
+	return nil
+}
+
+
+func (jsg jsGenerator) resolveFeatures(list []mapItemType) ([]int, error) {
+	resolved := make([]int, 0, len(list))
+	for _, child := range list {
+		if ref, is := child.(*map_referenceAggregateType); is {
+			group, err := jsg.resolveFeatures(ref.targets)
+			if err != nil {
+				return resolved, err
+			}
+			resolved = append(resolved, group...)
+		} else if child.ItemType() != mitPoint {
+			index, _ := jsg.features.index(child.Name())
+			if index == 0 {
+				index = jsg.features.allocEntryWithKey(child.Name())
+				serialized, err := jsg.serializeMapItem(child)
+				if err != nil {
+					return resolved, err
+				}
+				jsg.features.setEntry(index, serialized)
+			}
+			resolved = append(resolved, index)
 		}
 	}
-	blobs = append(blobs, "allVectors=" + vd.layersRoot.generateJs())
-	return "(function() {" + strings.Join(blobs, "\n") + "})();", nil
+	return resolved, nil
 }
 
 
-func (ml *mapLayersType) generateJs() string {
-	asFeatures := make([]mapItemType, len(ml.layers))
-	for i, v := range ml.layers {
-		asFeatures[i] = v
-	}
-	return featurizer(asFeatures).generateJs()
-}
-
-
-func (ml *mapLayerType) generateJs() string {
-	return generateJsObject("menuitem", ml.menuitem, "features", featurizer(ml.features))
-}
-
-
-func (mf *mapFeatureType) generateJs() string {
-	return generateJsObject(
-		"t", "feature",
-		"popup", mf.popup.nonEmptyString(),
-		"style", attestationOrStyle(mf.attestation, mf.style),
-		"features", featurizer(mf.features))
-}
-
-
-func (mp *mapPopupType) nonEmptyString() nonEmptyString {
-	var text string
-	if mp != nil {
-		text = mp.text
-	}
-	return nonEmptyString(text)
-}
-
-
-func (ml *map_locationType) generateJs() string {
-	if ml.itemType == mitCircle {
-		var asPixels bool
-		if ml.radiusType == mitPixels {
-			asPixels = true
+func (jsg jsGenerator) serializeMapItem(item mapItemType) (string, error) {
+	t := item.ItemTypeString()
+	var popup nonZeroInt
+	var features []mapItemType
+	style := nonZeroInt(jsg.vd.styler.styleIndex(item))
+	switch item := item.(type) {
+	case *mapFeatureType:
+		popup = item.popup.textIndex(jsg)
+		features = item.features
+	case *mapRouteOrSegmentType:
+		popup = item.popup.textIndex(jsg)
+		features = item.children
+	case *map_locationType:
+		popup = item.popup.textIndex(jsg)
+		protoLocation := item.prototypePath
+		if protoLocation == nil {
+			protoLocation = item
+		}
+		bigOffset, exists := jsg.points.index(protoLocation.Name())
+		if !exists {
+			bigOffset = jsg.points.addPoints(protoLocation.Name(),
+				protoLocation.location)
+		}
+		if item.itemType == mitCircle {
+			asPixels := item.radiusType == mitPixels
+			return generateJsObject(
+				"t", t,
+				"popup", popup,
+				"style", style,
+				"asPixels", asPixels,
+				"radius", item.radius,
+				"loc", []int{bigOffset, 2}), nil
 		}
 		return generateJsObject(
-			"t", "circle",
-			"popup", ml.popup.nonEmptyString(),
-			"style", attestationOrStyle(ml.attestation, ml.style),
-			"asPixels", asPixels,
-			"radius", ml.radius,
-			"coords", ml.location)
+			"t", t,
+			"popup", popup,
+			"style", style,
+			"html", nonEmptyString(item.html),
+			"loc", []int{bigOffset + int(item.offsetInPrototype), len(item.location)},
+		), nil
+	default:
+		return "", fmt.Errorf("unhandled item type %s", t)
+	}
+	indices, err := jsg.resolveFeatures(features)
+	if err != nil {
+		return "", err
 	}
 	return generateJsObject(
-		"t", typeMapToName[ml.itemType],
-		"popup", ml.popup.nonEmptyString(),
-		"html", nonEmptyString(ml.html),
-		"style", attestationOrStyle(ml.attestation, ml.style),
-		"coords", ml.location)
+		"t", t,
+		"popup", popup,
+		"style", style,
+		"f", indices,
+	), nil
 }
 
 
-func (mr *mapRouteType) generateJs() string {
-	return generateJsObject(
-		"t", "route",
-		"popup", mr.popup.nonEmptyString(),
-		"style", attestationOrStyle(mr.attestation, mr.style),
-		"features", featurizer(mr.segments))
-}
-
-
-func (ms *mapSegmentType) generateJs() string {
-	return generateJsObject(
-		"t", "segment",
-		"popup", ms.popup.nonEmptyString(),
-		"style", attestationOrStyle(ms.attestation, ms.style),
-		"paths", featurizer(ms.paths))
-}
-
-
-func (mr *map_referenceAggregateType) generateJs() string {
-	if mr.itemType == mitRouteSegments {
-		return generateJsFeaturesList(mr.targets[0].(*mapRouteType).segments)
+func (mp *mapPopupType) textIndex(jsg jsGenerator) nonZeroInt {
+	if mp == nil {
+		return nonZeroInt(0)
 	}
-	return generateJsFeaturesList(mr.targets)
+	return nonZeroInt(jsg.texts.addStringWithKey(mp.text, mp.text))
 }
 
 
 
 type nonEmptyString string
-type nonEmptyCode string
-
-type featurizer []mapItemType
-
-func (mis featurizer) generateJs() string {
-	return "[" + generateJsFeaturesList(mis) + "]"
-}
+type nonZeroInt int
 
 
-
-func generateJsFeaturesList(features []mapItemType) string {
-	blobs := make([]string, len(features))
-	var i int
-	for _, feature := range features {
-		if feature.ItemType() == mitPoint {
-			continue;
-		}
-		if len(feature.Referrers()) > 1 {
-			blobs[i] = feature.Name()
-		} else {
-			blobs[i] = feature.generateJs()
-		}
-		i++
-	}
-	return strings.Join(blobs[:i], ",")
-}
 
 func generateJsObject(args ...any) string {
 	entries := []string{}
@@ -160,42 +264,27 @@ func generateJsObject(args ...any) string {
 				continue
 			}
 			str = strconv.Quote(string(v))
-		case nonEmptyCode:
+		case nonZeroInt:
+			if v == 0 {
+				continue
+			}
+			str = strconv.Itoa(int(v))
+		case []int:
 			if len(v) == 0 {
 				continue
 			}
-			str = string(v)
+			items := make([]string, len(v))
+			for i, val := range v {
+				items[i] = strconv.Itoa(val)
+			}
+			str = "[" + strings.Join(items, ",") + "]"
 		case bool:
 			str = strconv.FormatBool(v)
-		case mapItemType:
-			if val == nil {
-				continue
-			}
-			str = v.generateJs()
-		case locationPairs:
-			str = v.generateJs()
-		case featurizer:
-			str = v.generateJs()
 		default:
 			continue
 		}
 		entries = append(entries, strconv.Quote(key.(string)) + ":" + str)
 	}
 	return "{" + strings.Join(entries, ",") + "}"
-}
-
-
-func attestationOrStyle(attestation *mapAttestationType, style *mapStyleType) nonEmptyCode {
-	var text string
-	resolvedStyleIndex := -1
-	if attestation != nil {
-		resolvedStyleIndex = attestation.resolvedStyleIndex
-	} else if style != nil {
-		resolvedStyleIndex = style.resolvedStyleIndex
-	}
-	if resolvedStyleIndex > 0 {
-		text = formStyleName(resolvedStyleIndex)
-	}
-	return nonEmptyCode(text)
 }
 

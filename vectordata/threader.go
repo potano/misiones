@@ -1,407 +1,419 @@
-// Copyright © 2023 Michael Thompson
+// Copyright © 2024 Michael Thompson
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 package vectordata
-        
 
-type gatheredSegments []*gatheredSegment
-
-type gatheredSegment struct {
-	obj mapItemType
-	paths []gatheredPath
-	lat1, long1, lat2, long2 locAngleType
-	splitSegment bool
-}
-
-type gatheredPath struct {
-	path *map_locationType
-	startPoint, endPoint int
-	waypointBefore, waypointAfter *map_locationType
-}
-
-
-
-func (seg *mapSegmentType) threadPaths() (*gatheredSegment, error) {
-	allPaths := []mapItemType{}
-	for _, item := range seg.paths {
-		switch item := item.(type) {
-		case *map_locationType:
-			allPaths = append(allPaths, item)
-		case *map_referenceAggregateType:
-			for _, mem := range item.targets {
-				_, is := mem.(*map_locationType)
-				if !is {
-					return nil, item.Error("%s is not a location", item.Name())
-				}
-				allPaths = append(allPaths, mem)
-			}
-		default:
-			return nil, item.Error("'%s' not allowed here", item.Name())
-		}
+// Establishes the exact traversal of a threadable map item (a route or a segment) via its
+// constituent parts.  In the normal case, each constituent shares a point of intersection (i.e.
+// a latitude/longitude pair) with its neighbor to either side.  The resulting threaded route or
+// segment includes only those points which fall between the intersection points of the respective
+// constituent.
+func (vd *VectorData) threadRouteOrSegment(item *mapRouteOrSegmentType) error {
+	children, err := gatherThreadedItemList(item)
+	if nil != err {
+		return err
 	}
-	paths := make([]gatheredPath, 0, len(allPaths))
-	var startLat, startLong, nextLat, nextLong locAngleType
-	var pendingPath *pendingPathType
-	var waypoint *map_locationType
-	var started bool
-	var item, prevItem mapItemType
-	for _, item = range allPaths {
-		var isPath bool
-		switch item.ItemType() {
-		case mitPath:
-			isPath = true
-		case mitPoint, mitMarker, mitCircle:
-		default:
-			return nil, item.Error("%s is not legal in a segment",
-				typeMapToName[item.ItemType()])
-		}
-		loc := item.(*map_locationType)
-		if isPath {
-			if pendingPath == nil {
-				pendingPath = newPendingPath(loc, waypoint)
-				if started {
-					if !pendingPath.setStartpoint(nextLat, nextLong) {
-						goto noConnectError
-					}
-				}
-			} else {
-				if !pendingPath.sendEndpointToNextPath(loc) {
-					goto noConnectError
-				}
-				if !started {
-					startLat, startLong = pendingPath.getStartpoint()
-					started = true
-				}
-				nextLat, nextLong = pendingPath.getEndpoint()
-				paths = append(paths, pendingPath.flush())
-				pendingPath = newPendingPath(loc, waypoint)
-			}
-			waypoint = nil
-		} else {
-			waypoint = loc
-			waypointLat, waypointLong := loc.location[0], loc.location[1]
-			if pendingPath == nil {
-				if started {
-					if !isSamePoint(waypointLat, waypointLong,
-							nextLat, nextLong) {
-						goto noConnectError
-					}
-				} else {
-					startLat, startLong = waypointLat, waypointLong
-					started = true
-				}
-			} else {
-				if !pendingPath.setEndpoint(waypointLat, waypointLong) {
-					goto noConnectError
-				}
-				if !started {
-					startLat, startLong = pendingPath.getStartpoint()
-					started = true
-				}
-				paths = append(paths, pendingPath.flush())
-				pendingPath = nil
-			}
-			nextLat, nextLong = waypointLat, waypointLong
-		}
-		prevItem = item
-	}
-	if pendingPath != nil {
-		if started {
-			if !pendingPath.setStartpoint(nextLat, nextLong) {
-				goto noConnectError
-			}
-		} else {
-			startLat, startLong = pendingPath.getStartpoint()
-			started = true
-		}
-		nextLat, nextLong = pendingPath.getEndpoint()
-		pendingPath.setWaypointAfter(waypoint)
-		paths = append(paths, pendingPath.flush())
-	}
-	if len(paths) == 0 {
-		return nil, seg.Error("segment '%s' is empty", seg.Name())
-	}
-	return &gatheredSegment{seg, paths, startLat, startLong, nextLat, nextLong, false}, nil
-
-	noConnectError:
-	if prevItem != nil {
-		return nil, seg.Error("%s '%s' does not connect with %s '%s' in segment '%s'",
-			typeMapToName[item.ItemType()], item.Name(),
-			typeMapToName[prevItem.ItemType()], prevItem.Name(), seg.Name())
-	}
-	return nil, seg.Error("%s '%s' does not connect with segment '%s'",
-		typeMapToName[item.ItemType()], item.Name(), seg.Name())
-}
-
-
-
-
-func (seg *gatheredSegment) reverse() {
-	reversedPaths := make([]gatheredPath, len(seg.paths))
-	pos := len(seg.paths)
-	for _, pth := range seg.paths {
-		pth.startPoint, pth.endPoint = pth.endPoint, pth.startPoint
-		pos--
-		reversedPaths[pos] = pth
-	}
-	seg.paths = reversedPaths
-	seg.lat1, seg.lat2 = seg.lat2, seg.lat1
-	seg.long1, seg.long2 = seg.long2, seg.long1
-}
-
-
-
-func (segs gatheredSegments) reverse() {
-	for i, j := 0, len(segs) - 1; i < j; i, j = i + 1, j - 1 {
-		segs[i], segs[j] = segs[j], segs[i]
-		segs[i].reverse()
-		segs[j].reverse()
-	}
-}
-
-func (segs gatheredSegments) findPointOffset(lat, long locAngleType) (int, int, int) {
-	for segX, seg := range segs {
-		for pathX, path := range seg.paths {
-			pointX := path.path.location.indexOfPoint(lat, long)
-			if pointX >= 0 {
-				return segX, pathX, pointX
-			}
-		}
-	}
-	return -1, -1, -1
-}
-
-
-
-func (gp gatheredPath) points() (locationPairs, int, bool) {
-	startPoint, endPoint := gp.startPoint, gp.endPoint
-	var forward bool
-	if endPoint < startPoint {
-		startPoint, endPoint = endPoint, startPoint
-	} else {
-		forward = true
-	}
-	return gp.path.location[startPoint:endPoint+2], startPoint >> 1, forward
-}
-
-
-
-
-type pendingPathType struct {
-	path *map_locationType
-	startPoint, endPoint int
-	waypointBefore, waypointAfter *map_locationType
-}
-
-func newPendingPath(path *map_locationType, waypointBefore *map_locationType) *pendingPathType {
-	return &pendingPathType{path, -1, -1, waypointBefore, nil}
-}
-
-func (pp *pendingPathType) setStartpoint(lat, long locAngleType) bool {
-	loc := pp.path.location
-	pp.startPoint = loc.indexOfPoint(lat, long)
-	if pp.startPoint == len(loc)-2 && pp.endPoint < 0 {
-		//This handles an important special case:  path at the end of the list
-		// with points listed in reverse of of previous path.  We can disambiguate this
-		// special case, but a waypoint midway in path needs user's explicit indication
-		// of a waypoint to end the segment
-		pp.endPoint = 0
-	}
-	return pp.startPoint >= 0
-}
-
-func (pp *pendingPathType) setEndpoint(lat, long locAngleType) bool {
-	pp.endPoint = pp.path.location.indexOfPoint(lat, long)
-	if pp.endPoint == 0 && pp.startPoint < 0 {
-		//Corresponding special case for direction-flipping waypoint at end of segment
-		pp.startPoint = len(pp.path.location) - 2
-	}
-	return pp.endPoint >= 0
-}
-
-func (pp *pendingPathType) sendEndpointToNextPath(path *map_locationType) bool {
-	loc := pp.path.location
-	lastIndex := len(loc) - 2
-	if path.location.haveMatchingEndpoint(loc[0], loc[1]) {
-		pp.endPoint = 0
-		if pp.startPoint < 0 {
-			pp.startPoint = lastIndex
-		}
-		return true
-	}
-	if path.location.haveMatchingEndpoint(loc[lastIndex], loc[lastIndex+1]) {
-		pp.endPoint = lastIndex
-		if pp.startPoint < 0 {
-			pp.startPoint = 0
-		}
-		return true
-	}
-	return false
-}
-
-func (pp *pendingPathType) getStartpoint() (locAngleType, locAngleType) {
-	loc := pp.path.location
-	var startPoint int
-	if pp.startPoint >= 0 {
-		startPoint = pp.startPoint
-	}
-	return loc[startPoint], loc[startPoint + 1]
-}
-
-func (pp *pendingPathType) getEndpoint() (locAngleType, locAngleType) {
-	loc := pp.path.location
-	var endPoint int
-	if pp.endPoint < 0 {
-		endPoint = len(loc) - 2
-	} else {
-		endPoint = pp.endPoint
-	}
-	return loc[endPoint], loc[endPoint + 1]
-}
-
-func (pp *pendingPathType) setWaypointAfter(waypoint *map_locationType) {
-	pp.waypointAfter = waypoint
-}
-
-func (pp *pendingPathType) flush() gatheredPath {
-	loc := pp.path.location
-	startPoint := pp.startPoint
-	if startPoint < 0 {
-		startPoint = 0
-	}
-	endPoint := pp.endPoint
-	if endPoint < 0 {
-		endPoint = len(loc) - 2
-	}
-	return gatheredPath{pp.path, startPoint, endPoint, pp.waypointBefore, pp.waypointAfter}
-}
-
-
-
-
-func (route *mapRouteType) threadSegments() (gatheredSegments, error) {
-	segments := []*gatheredSegment{}
-	for _, seg := range route.segments {
-		switch seg.ItemType() {
-		case mitSegment:
-			gathered, err := seg.(*mapSegmentType).threadPaths()
-			if err != nil {
-				return nil, err
-			}
-			segments = append(segments, gathered)
-		case mitSegments:
-			for _, mem := range seg.(*map_referenceAggregateType).targets {
-				switch seg := mem.(type) {
-				case *mapSegmentType:
-					gathered, err := seg.threadPaths()
-					if err != nil {
-						return nil, err
-					}
-					segments = append(segments, gathered)
-				default:
-					return nil, mem.Error("%s not allowed in segments",
-						typeMapToName[mem.ItemType()])
-				}
-			}
-		case mitRouteSegments:
-			agg := seg.(*map_referenceAggregateType)
-			route := agg.targets[0].(*mapRouteType)
-			startPoint, endPoint := agg.targets[1], agg.targets[2]
-			segs, err := route.segmentsBetweenPoints(startPoint, endPoint)
-			if err != nil {
-				return nil, err
-			}
-			segments = append(segments, segs...)
-		default:
-			// Ignore other object types in routes: they don't affect route length
-		}
-	}
-	var nextLat, nextLong locAngleType
-	for segX, seg := range segments {
-		if segX > 0 {
-			var ok, reverse bool
-			if isSamePoint(nextLat, nextLong, seg.lat1, seg.long1) {
-				ok = true
-			} else if isSamePoint(nextLat, nextLong, seg.lat2, seg.long2) {
-				ok = true
-				reverse = true
-			} else if segX == 1 {
-				lat0, long0 := segments[0].lat1, segments[0].long1
-				if isSamePoint(lat0, long0, seg.lat1, seg.long1) {
-					ok = true
-				} else if isSamePoint(lat0, long0, seg.lat2, seg.long2) {
-					ok = true
-					reverse = true
-				}
-				segments[0].reverse();
-			}
-			if !ok {
-				return nil, route.Error(
-					"segment '%s' does not connect with route '%s'",
-					seg.obj.Name(), route.Name())
-			}
-			if reverse {
-				seg.reverse()
-			}
-		}
-		nextLat, nextLong = seg.lat2, seg.long2
-	}
-	return segments, nil
-}
-
-func (route *mapRouteType) segmentsBetweenPoints(pt1, pt2 mapItemType) (gatheredSegments, error) {
-	segments, err := route.threadSegments()
+	markedChildren, err := vd.markComponentIntersections(item, children)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	points := []mapItemType{pt1, pt2}
-	var seg1, path1, pair1, seg2, path2, pair2 int
-	for ptX, pt := range points {
-		point := pt.(*map_locationType)
-		location := point.location
-		segX, pathX, pairX := segments.findPointOffset(location[0], location[1])
-		if segX < 0 {
-			return nil, pt.Error("%s '%s' is not present in route '%s",
-				typeMapToName[pt.ItemType()], pt.Name(), route.Name())
-		}
-		if ptX == 0 {
-			seg1, path1, pair1 = segX, pathX, pairX
-		} else {
-			seg2, path2, pair2 = segX, pathX, pairX
-		}
-	}
-	if seg2 < seg1 || (seg2 == seg1 && (path2 < path1 || path2 == path1 && pair2 < pair1)) {
-		segments.reverse()
-		if seg2 < seg1 {
-			seg1, seg2 = seg2, seg1
-		}
-		path1 = (len(segments[seg1].paths) - 1) - path1
-		path2 = (len(segments[seg2].paths) - 1) - path2
-	}
-	lastPoint := segments[seg2].paths[path2].path.location
-	segments[seg2].lat2, segments[seg2].long2 = lastPoint[pair2], lastPoint[pair2+1]
-	segments[seg2].paths[path2].endPoint = pair2
-	segments[seg2].paths = segments[seg2].paths[:path2+1]
-	segments[seg2].splitSegment = true
+	pickedChildren := pickThreadedItems(item, markedChildren)
+	return vd.finishThreading(pickedChildren)
+}
 
-	firstPoint := segments[seg1].paths[path1].path.location
-	segments[seg1].lat1, segments[seg1].long1 = firstPoint[pair1], firstPoint[pair1+1]
-	segments[seg1].paths[path1].startPoint = pair1
-	segments[seg1].paths = segments[seg1].paths[path1:]
-	segments[seg1].splitSegment = true
 
-	segments = segments[seg1:seg2+1]
+// Special methods for path, point, point-like, route, and segment items
+type threadableMapItemType interface {
+	mapItemType
+	getCrosspoints() latlongRefs
+	endpointsAndOffsets() (pt1, pt2 latlongType, off1, off2 locationIndexType)
+	oppositeEndpoint(startPoint latlongType) (endPoint latlongType, endOffset,
+		startOffset locationIndexType)
+	isPoint() bool
+	resolveReferenceToLocation(ref latlongRef) *map_locationType
+}
 
-	return segments, nil
+
+// Markup for each child of a item being threaded
+type pendingChildInfo struct {
+	child threadableMapItemType
+	startRefs, endRefs latlongRefs
 }
 
 
 
+func gatherThreadedItemList(item *mapRouteOrSegmentType) ([]threadableMapItemType, error) {
+	var children []threadableMapItemType
+	for _, listItem := range item.routeComponents() {
+		switch listItem := listItem.(type) {
+		case *map_locationType, *mapRouteOrSegmentType:
+			children = append(children, listItem.(threadableMapItemType))
+		case *map_referenceAggregateType:
+			for targX, refTarget := range listItem.targets {
+				switch refTarget := refTarget.(type) {
+				case *map_locationType, *mapRouteOrSegmentType:
+					children = append(children,
+						&threadableMapItemReference{
+							refTarget.(threadableMapItemType),
+							listItem.names[targX].Source()})
+				default:
+					return nil, refTarget.Error("'%s' not allowed in %s",
+						refTarget.Name(), listItem.Name())
+				}
+			}
+		default:
+			return nil, item.Error("'%s' not allowed in %s", listItem.Name(),
+				item.Name())
+		}
+	}
+	return children, nil
+}
 
-func (path *map_locationType) pathAsGatheredSegment() *gatheredSegment {
-	startPoint, endPoint := 0, len(path.location) - 2
-	loc := path.location
-	return &gatheredSegment{nil, []gatheredPath{{path, startPoint, endPoint, nil, nil}},
-		loc[0], loc[1], loc[endPoint-2], loc[endPoint-1], false}
+
+func (vd *VectorData) markComponentIntersections(item threadableMapItemType,
+		children []threadableMapItemType) ([]pendingChildInfo, error) {
+	// Augment each component item with a record that indicates how it relates to its neighbor
+	boundedChildren := make([]pendingChildInfo, len(children))
+	previousChildInfo := &boundedChildren[0]
+	var previousCrosspoints latlongRefs
+	endingCrosspoints := make([]latlongRefs, len(children))
+	for childX, child := range children {
+		childInfo := &boundedChildren[childX]
+		childInfo.child = child
+		childCrosspoints := child.getCrosspoints()
+		if childX > 0 {
+			matching, notMatching, ambiguous :=
+				childCrosspoints.findMatchingCrosspoints(previousCrosspoints)
+			if len(matching) > 0 {
+				childInfo.startRefs = matching
+				if ambiguous {
+					noteAmbiguousCrosspointMatch(vd, child,
+					children[childX - 1])
+				}
+				matching, _, _ = previousChildInfo.child.getCrosspoints().
+					findMatchingCrosspoints(matching)
+				previousChildInfo.endRefs = matching
+			}
+			if child.isPoint() {
+				childInfo.endRefs = childInfo.startRefs
+				previousCrosspoints = matching
+			} else {
+				previousCrosspoints = notMatching
+			}
+		} else {
+			previousCrosspoints = childCrosspoints
+		}
+		endingCrosspoints[childX] = previousCrosspoints
+		previousChildInfo = childInfo
+	}
+
+	// Flag points of discontinuity and fill in missing endpoints
+	for childX := range boundedChildren {
+		childInfo := &boundedChildren[childX]
+		startRefs, endRefs := childInfo.startRefs, childInfo.endRefs
+		child := childInfo.child
+		if len(startRefs) == 0 || len(endRefs) == 0 {
+			childEnds1, childEnds2 := synthesizeCrosspointReferences(child)
+			crosspointsAtEnd := endingCrosspoints[childX]
+			availableForStartpoint := crosspointsAtEnd
+			if len(startRefs) == 0 && len(endRefs) == 0 {
+				if len(boundedChildren) > 1 {
+					noteFailedCrosspointMatch(vd, child, item)
+				}
+				childInfo.startRefs = childEnds1
+				childInfo.endRefs = childEnds2
+				continue
+			} else if len(endRefs) == 0 {
+				matching1, notMatching1, _ := childEnds1.
+					findMatchingCrosspoints(crosspointsAtEnd)
+				matching2, notMatching2, _ := childEnds2.
+					findMatchingCrosspoints(crosspointsAtEnd)
+				if len(matching2) > 0 {
+					if len(matching1) > 0 {
+						noteAmbiguousEndpoint(vd, child, item)
+					}
+					endRefs = matching2
+					availableForStartpoint = notMatching2
+				} else if len(matching1) > 0 {
+					endRefs = matching1
+					availableForStartpoint = notMatching1
+				} else {
+					endRefs = childEnds2
+				}
+			} else {
+				_, availableForStartpoint, _ = crosspointsAtEnd.
+					findMatchingCrosspoints(endRefs)
+			}
+			if len(startRefs) == 0 {
+				if childX > 0 {
+					noteFailedCrosspointMatch(vd, child, item)
+				}
+				matching1, _, _ := childEnds1.
+					findMatchingCrosspoints(availableForStartpoint)
+				matching2, _, _ := childEnds2.
+					findMatchingCrosspoints(availableForStartpoint)
+				if len(matching1) > 0 {
+					if len(matching2) > 0 {
+						noteAmbiguousEndpoint(vd, child, item)
+					}
+					startRefs = matching1
+				} else if len(matching2) > 0 {
+					startRefs = matching2
+				} else {
+					startRefs = childEnds1
+				}
+			}
+		}
+		if len(startRefs) > 1 || len(endRefs) > 1 {
+			ascending := startRefs[0].comesBefore(endRefs[0])
+			if len(startRefs) > 1 {
+				startRefs = resolveEndRefs(child, startRefs, ascending)
+			}
+			if len(endRefs) > 1 {
+				endRefs = resolveEndRefs(child, endRefs, !ascending)
+			}
+		}
+		childInfo.startRefs = startRefs
+		childInfo.endRefs = endRefs
+	}
+	for childX, child := range boundedChildren {
+		if item, is := child.child.(*threadableMapItemReference); is {
+			boundedChildren[childX].child = item.item
+		}
+	}
+	return boundedChildren, nil
+}
+
+
+func resolveEndRefs(child threadableMapItemType, refs latlongRefs, reverse bool) latlongRefs {
+	pos, inc, stop := 0, 1, len(refs)
+	if reverse {
+		pos, inc, stop = len(refs) - 1, -1, -1
+	}
+	havePath := false
+	var takePos int
+	for pos != stop {
+		ref := refs[pos]
+		loc := child.resolveReferenceToLocation(ref)
+		if loc.isPoint() {
+			takePos = pos
+		} else if havePath {
+			break
+		} else {
+			havePath = true
+			takePos = pos
+		}
+		pos += inc
+	}
+	return latlongRefs{refs[takePos]}
+}
+
+
+
+func noteAmbiguousCrosspointMatch(vd *VectorData, child, parent mapItemType) {
+	logThreadingError(vd, child, parent, "%s %s connects with %s %s at multiple points")
+}
+
+func noteAmbiguousEndpoint(vd *VectorData, child, parent mapItemType) {
+	logThreadingError(vd, child, parent, "cannot determine free endpoint of %s %s under %s %s")
+}
+
+func noteFailedCrosspointMatch(vd *VectorData, child, parent mapItemType) {
+	logThreadingError(vd, child, parent, "%s %s does not connect with %s %s")
+}
+
+
+
+type pickedItem struct {
+	item threadableMapItemType			// route, segment, path, marker, or point
+	children []pickedItem				// selected children of segment
+	startPoint, endPoint latlongType		// latitude and longitude of endpoints
+	startOffset, endOffset locationIndexType	// start and end offsets within path
+	shortened bool					// TRUE if we need to generate new item
+}
+
+// Returns a picked-item structure.  The route or segment at the root of this structure is the
+// route or segment being threaded along with information about its endpoints.  The children of
+// this root element are trees referenced in the definition of the root element such that each
+// tree contains only those paths and segments which lie between the indicated intersection
+// points.  Later parts of the processing reduces these reference subtrees to a form suitable
+// for the root element.
+func pickThreadedItems(root mapItemType, marked []pendingChildInfo) pickedItem {
+	if len(marked) == 0 {
+		return pickedItem{item: root.(threadableMapItemType)}
+	}
+	pickedItems := make([]pickedItem, 0, len(marked))
+	for _, pending := range marked {
+		child := pending.child
+		alignPoint, endPoint, startOffset, endOffset := child.endpointsAndOffsets()
+		crossStartOffset := pending.startRefs[0].indices[0]
+		crossEndOffset := pending.endRefs[0].indices[0]
+		if pending.endRefs[0].comesBefore(pending.startRefs[0]) {
+			alignPoint, endPoint = endPoint, alignPoint
+			startOffset, endOffset = endOffset, startOffset
+		}
+		picked := pending.pickItem(child, 1, alignPoint, endPoint,
+			startOffset, endOffset, crossStartOffset, crossEndOffset)
+		pickedItems = append(pickedItems, picked)
+	}
+	rootStartOffset := locationIndexType(0)
+	rootEndOffset := locationIndexType(len(pickedItems) - 1)
+	rootStartPoint := pickedItems[0].startPoint
+	rootEndPoint := pickedItems[rootEndOffset].endPoint
+	return pickedItem{
+		item: root.(threadableMapItemType),
+		children: pickedItems,
+		startPoint: rootStartPoint,
+		endPoint: rootEndPoint,
+		startOffset: rootStartOffset,
+		endOffset: rootEndOffset,
+	}
+}
+
+
+
+func (pc *pendingChildInfo) pickItem(item mapItemType, depth int, alignPoint, endPoint latlongType,
+		alignPointOffset, endPointOffset locationIndexType,
+		crossStartOffset, crossEndOffset locationIndexType) pickedItem {
+	selectionStart, selectionEnd := alignPointOffset, endPointOffset
+	if crossStartOffset >= 0 {
+		selectionStart = crossStartOffset
+	}
+	if crossEndOffset >= 0 {
+		selectionEnd = crossEndOffset
+	}
+	partial := (selectionStart != alignPointOffset || selectionEnd != endPointOffset) &&
+		(selectionStart != endPointOffset || selectionEnd != alignPointOffset)
+	if path, is := item.(*map_locationType); is {
+		return pickedItem{
+			item: item.(threadableMapItemType),
+			startPoint: path.pointAtOffset(selectionStart),
+			endPoint: path.pointAtOffset(selectionEnd),
+			startOffset: selectionStart,
+			endOffset: selectionEnd,
+			shortened: partial,
+		}
+	}
+
+	readPos := alignPointOffset
+	var readIncrement locationIndexType
+	descendingAlignment := endPointOffset < alignPointOffset
+	if descendingAlignment {
+		readIncrement = -1
+	} else {
+		readIncrement = 1
+	}
+	descendingSelection := (selectionEnd < selectionStart) != descendingAlignment
+	minSelection, maxSelection := selectionStart, selectionEnd
+	if maxSelection < minSelection {
+		minSelection, maxSelection = maxSelection, minSelection
+	}
+	var skipCount int
+	if descendingAlignment {
+		skipCount = int(maxSelection - alignPointOffset)
+	} else {
+		skipCount = int(alignPointOffset - minSelection)
+	}
+	if skipCount < 0 {
+		skipCount = - skipCount
+	}
+	pickCount := int(1 + maxSelection - minSelection)
+	var writePos, writeIncrement int
+	if descendingSelection {
+		writePos = pickCount - 1
+		writeIncrement = -1
+	} else {
+		writePos = 0
+		writeIncrement = 1
+	}
+	children := item.(*mapRouteOrSegmentType).children
+	pickedChildren := make([]pickedItem, pickCount)
+	var parentStartPoint, parentEndPoint latlongType
+	for {
+		child := children[readPos]
+		farEndpoint, farEndpointOffset, nearEndpointOffset :=
+			child.(threadableMapItemType).oppositeEndpoint(alignPoint)
+		if skipCount > 0 {
+			skipCount--
+			readPos += readIncrement
+			alignPoint = farEndpoint
+			continue
+		}
+		var childCrossingStart, childCrossingEnd locationIndexType
+		if readPos == crossStartOffset {
+			childCrossingStart = pc.startRefs[0].indices[depth]
+		} else {
+			childCrossingStart = -1
+		}
+		if readPos == crossEndOffset {
+			childCrossingEnd = pc.endRefs[0].indices[depth]
+		} else {
+			childCrossingEnd = -1
+		}
+		picked := pc.pickItem(child, depth + 1, alignPoint, farEndpoint,
+			nearEndpointOffset, farEndpointOffset, childCrossingStart, childCrossingEnd)
+		pickedChildren[writePos] = picked
+		writePos += writeIncrement
+		partial = partial || picked.shortened
+		if readPos == selectionStart {
+			parentStartPoint = picked.startPoint
+		}
+		if readPos == selectionEnd {
+			parentEndPoint = picked.endPoint
+		}
+		if pickCount < 2 {
+			break
+		}
+		alignPoint = farEndpoint
+		pickCount--
+		readPos += readIncrement
+	}
+	return pickedItem{
+		item: item.(threadableMapItemType),
+		children: pickedChildren,
+		startPoint: parentStartPoint,
+		endPoint: parentEndPoint,
+		startOffset: 0,
+		endOffset: locationIndexType(len(pickedChildren) - 1),
+		shortened: partial,
+	}
+}
+
+
+
+func (vd *VectorData) finishThreading(rootPickedItem pickedItem) error {
+	item := rootPickedItem.item.(*mapRouteOrSegmentType)
+	item.setEndpointsAndChildren(rootPickedItem.startPoint, rootPickedItem.endPoint,
+		rootPickedItem.fixChildren(vd, item, item.ItemType() == mitRoute))
+	return nil
+}
+
+
+func (pi pickedItem) fixChildren(vd *VectorData, parent mapItemType,
+		returnSegments bool) []mapItemType {
+	var readyChildren []mapItemType
+	for _, picked := range pi.children {
+		switch child := picked.item.(type) {
+		case *mapRouteOrSegmentType:
+			if child.ItemType() == mitRoute || !returnSegments {
+				grandchildren := picked.fixChildren(vd, parent, returnSegments)
+				readyChildren = append(readyChildren, grandchildren...)
+				continue
+			}
+			if picked.shortened {
+				child = child.clone(vd, parent)
+				child.setEndpointsAndChildren(picked.startPoint, picked.endPoint,
+					picked.fixChildren(vd, child, returnSegments))
+			}
+			readyChildren = append(readyChildren, child)
+		case *map_locationType:
+			if picked.shortened {
+				child = child.makeSubpath(vd, parent,
+					picked.startOffset, picked.endOffset)
+			}
+			readyChildren = append(readyChildren, child)
+		}
+	}
+	return readyChildren
 }
 

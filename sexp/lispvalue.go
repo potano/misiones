@@ -97,6 +97,10 @@ func (b ValueSource) Error(msg string, args... any) SexpError {
 	return newSexpError(b.source, b.lineno, msg, args...)
 }
 
+func (b ValueSource) SourceDescription() string {
+	return formSourceDescription(b.source, b.lineno)
+}
+
 
 type LispList struct {
 	ValueSource

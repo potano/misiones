@@ -4,7 +4,6 @@
 package vectordata
 
 import (
-	"strconv"
 	"potano.misiones/sexp"
 	"potano.misiones/parser"
 )
@@ -136,6 +135,7 @@ type newMapItemFunc func (doc *VectorData, parent mapItemType, listType, listNam
 
 type mapItemCore struct {
 	name string
+	itemType int
 	source sexp.ValueSource
 	referrers []string
 }
@@ -149,7 +149,11 @@ func (mic *mapItemCore) Source() sexp.ValueSource {
 }
 
 func (mic *mapItemCore) ItemType() int {
-	return 0
+	return mic.itemType
+}
+
+func (mic *mapItemCore) ItemTypeString() string {
+	return typeMapToName[mic.itemType]
 }
 
 func (mic *mapItemCore) noteReferrer(name string, referrer mapItemType) error {
@@ -189,10 +193,6 @@ func (mic *mapItemCore) Error(msg string, args ...any) error {
 	return mic.source.Error(msg, args...)
 }
 
-func (mic *mapItemCore) generateJs() string {
-	return ""
-}
-
 
 
 
@@ -200,7 +200,6 @@ func (mic *mapItemCore) generateJs() string {
 
 type map_textType struct {
 	mapItemCore
-	itemType int
 	text string
 }
 
@@ -213,10 +212,6 @@ func newMap_text(doc *VectorData, parent mapItemType, listType, listName string,
 		return nil, source.Error("unknown object type '%s'", listType)
 	}
 	return mt, nil
-}
-
-func (mt *map_textType) ItemType() int {
-	return mt.itemType
 }
 
 func (mt *map_textType) addScalars(targetName string, scalars []sexp.LispScalar) error {
@@ -247,11 +242,8 @@ func newMapFeature(doc *VectorData, parent mapItemType, listType, listName strin
 	mf.source = source
 	name, err := doc.registerMapItem(mf, listName)
 	mf.name = name
+	mf.itemType = mitFeature
 	return mf, err
-}
-
-func (mf *mapFeatureType) ItemType() int {
-	return mitFeature
 }
 
 func (mf *mapFeatureType) setPopup(popup *mapPopupType) {
@@ -284,12 +276,9 @@ type mapPopupType struct {
 func newMapPopup(doc *VectorData, parent mapItemType, listType, listName string,
 		source sexp.ValueSource) (mapItemType, error) {
 	mm := &mapPopupType{}
+	mm.itemType = mitPopup
 	mm.source = source
 	return mm, nil
-}
-
-func (mp *mapPopupType) ItemType() int {
-	return mitPopup
 }
 
 func (mp *mapPopupType) addScalars(targetName string, scalars []sexp.LispScalar) error {
@@ -298,106 +287,6 @@ func (mp *mapPopupType) addScalars(targetName string, scalars []sexp.LispScalar)
 		text += scalar.String()
 	}
 	mp.text = text
-	return nil
-}
-
-
-
-type map_locationType struct {
-	mapItemCore
-	itemType int
-	popup *mapPopupType
-	html string
-	style *mapStyleType
-	attestation *mapAttestationType
-	radius, radiusType int
-	location locationPairs
-}
-
-func newMap_location(doc *VectorData, parent mapItemType, listType, listName string,
-		source sexp.ValueSource) (mapItemType, error) {
-	if parent == nil && len(listName) == 0 {
-		return nil, source.Error("no name given for non-embedded %s", listType)
-	}
-	ml := &map_locationType{}
-	ml.source = source
-	ml.itemType = nameToTypeMap[listType]
-	if ml.itemType == 0 {
-		return nil, source.Error("unknown object type '%s'", listType)
-	}
-	name, err := doc.registerMapItem(ml, listName)
-	ml.name = name
-	return ml, err
-}
-
-func (ml *map_locationType) ItemType() int {
-	return ml.itemType
-}
-
-func (ml *map_locationType) setPopup(popup *mapPopupType) {
-	ml.popup = popup
-}
-
-func (ml *map_locationType) setHtml(html *map_textType) {
-	ml.html = html.text
-}
-
-func (ml *map_locationType) setStyle(style *mapStyleType) {
-	ml.style = style
-}
-
-func (ml *map_locationType) setAttestation(attestation *mapAttestationType) {
-	ml.attestation = attestation
-}
-
-func (ml *map_locationType) setRadius(radius *mapRadiusType) {
-	ml.radius = radius.radius
-	ml.radiusType = radius.ItemType()
-}
-
-func (ml *map_locationType) addScalars(targetName string, scalars []sexp.LispScalar) error {
-	var err error
-	ml.location, err = toLocationPairs(scalars)
-	return err
-}
-
-func (ml *map_locationType) styleAndAttestation() (*mapStyleType, *mapAttestationType) {
-	return ml.style, ml.attestation
-}
-
-
-
-type mapRadiusType struct {
-	mapItemCore
-	itemType int
-	radius int
-}
-
-func newMapRadius(doc *VectorData, parent mapItemType, listType, listName string,
-		source sexp.ValueSource) (mapItemType, error) {
-	mr := &mapRadiusType{}
-	mr.source = source
-	mr.itemType = nameToTypeMap[listType]
-	if mr.itemType == 0 {
-		return nil, source.Error("unknown object type '%s'", listType)
-	}
-	return mr, nil
-}
-
-func (mr *mapRadiusType) ItemType() int {
-	return mr.itemType
-}
-
-func (mr *mapRadiusType) addScalars(targetName string, scalars []sexp.LispScalar) error {
-	scalar := scalars[0]
-	if !scalar.IsInt() {
-		return scalar.Error("radius is not an integer")
-	}
-	i, err := strconv.Atoi(scalar.String())
-	if err != nil {
-		return scalar.Error("error convering radius %s: %s", scalar.String(), err)
-	}
-	mr.radius = i
 	return nil
 }
 

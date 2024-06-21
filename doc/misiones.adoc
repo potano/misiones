@@ -137,19 +137,23 @@ _layer_::: Declares a layer, which is a set of map items which can be hidden fro
 displayed on the map by means a selection box that LeafletJS displays on the map.
 Must contain a _menuitem_ attribute and a _features_ list.
 
-_route_::: Connects an ordered set segments into a complete route.  Segments may be
-elaborated explicitly in a _segment_ list contained in the _route_ or via indirect
-references in a _segments_ list.  Each constituent segment must share an endpoint
-with its neighboring segments and likewise the paths of each segment must align with
-its neighboring paths and/or waypoints.
+_route_::: Connects an ordered set of segments optionally interspersed with waypoints
+into a complete route.  Segments and waypoints may be elaborated explicitly via
+_segment_, _point_, _marker_, or _circle_ lists contained in the _route_ or via
+indirect references in a _segments_ list.  Each constituent of a route must connect
+with its neighbor via a common point (latitude/longitude pair).  For segments, these
+points of intersection may be anywhere along the segment, but a segment with two
+neighbors must join with those at two separate points.
 May contain _style_, _attestation_, _popup_, or _lengthRange_ attributes.
 
-_segment_::: Connects an ordered list of paths into a complete segment.  Paths and
-waypoints may be written as _path_, _point_, _marker_, or _circle_ lists directly
-within the _segment_ list or may be specified indirectly in a _paths_ list.  Paths in
-a segment typically share endpoints with their neighboring paths, but if a waypoint
-is listed between two paths, one or both of the paths are effectively shortened so
-that the waypoint marks the join point of the paths.
+_segment_::: Connects an ordered list of paths optionally interspersed with waypoints
+into a complete segment.  Paths and waypoints may be written as _path_, _point_,
+_marker_, or _circle_ lists directly within the _segment_ list or may be specified
+indirectly in a _paths_ list.  Each constituent of a segment must connect with its
+neighbor at a common point (latitude/longitude pair).  The intersection points of a
+path may be anywhere along the path, but if a path has two neighbors in the segment,
+these intersection points must be distinct (viz. specifying a path as part of a
+segment must contribute to the length of the segment).
 A _segment_ may contain _style_, _attestation_, or _popup_ attributes.
 
 geometric features:: These are structural items with locations specified by latitude
@@ -168,7 +172,10 @@ latitude/longitude point for the base of the marker.  Uses the normal LeafletJS
 marker-icon mechanism unless the _marker_ list contains the _html_ attribute, in
 which case the HTML is used in a LeafletJS _divIcon_.
 
-_path_::: Declares a path:  an ordered set of latitude/longitude pairs.  Paths may be
+_path_::: Declares a path:  an ordered set of latitude/longitude pairs.  The
+measurement of distances between neighboring points in paths is what gives rise to
+the lengths of paths, segments, and routes.  A path must have a non-zero length:
+paths must contain at least two latitude/longitude pairs.  Paths may be
 joined in sequence via _segment_ lists.
 
 _point_::: Locates a single point on the map.  Requires a latitude/longitude pair.
@@ -245,11 +252,13 @@ collections
 _features_::: Collection of references to _feature_, _route_, and geometric-feature
 lists.
 
-_paths_::: Ordered collection of references to _path_, _point_, _marker_, and/or
-_circle_ lists.  May occur only within _segment_ lists.
+_paths_::: Ordered collection of references to _path_, _point_, _marker_, _circle_,
+_segment_, and/or _route_ lists.  References to segments or routes results in the
+extraction of the constituent paths of the referenced item.  May occur only within
+_segment_ lists.
 
-_segments_::: Ordered collection of segment references.  May occur only within
-_route_ lists.
+_segments_::: Ordered collection of segment and/or route references.  May occur only
+within _route_ lists.
 
 _routeSegments_::: Selects a range of segments from a route to reuse as part of
 another route.  Just as portions of paths may be selected within a _segments_ list
@@ -349,10 +358,18 @@ the length of a _segment_.  To make such measurements possible, two rules apply:
 segment to the other.
 
 . Each path within a segment must share an effective endpoint with the adjacent
-path(s) in the list of paths for the segment.  (If a waypoint is present, a path's
-effective endpoint becomes whatever point within the path is the same as the
-waypoint; if the point is an interior point, the path is effectively shortened.  In
-the absence of a waypoint, a path's effective endpoint is its actual endpoint.)
+path(s) in the list of paths for the segment.
+The effective endpoint may be at a path's actual endpoint or may be at some point
+shared with a neighboring path or waypoint.  (Older versions of the program required
+that the source file specify a waypoint to select a point in the interior of a path,
+but now the discovery of common points is automatic.)
+
+The effective endpoints of a path must be two separate points.  When a path is
+listed as the first or last item in a segment with multiple items, the point of
+intersection must be at one of the path's actual endpoints; program uses the other
+endpoint as the endpoint to select the path.
+Selecting an interior point of such a path sets up an ambiguity:  to resolve it, the
+user must specify a waypoint to indicate which free end to use.
 
 The choice of the direction of travel is unimportant for both the segment as a whole
 and for the traversal of points within an individual path.
@@ -383,9 +400,8 @@ to be the endpoints of the segment as a whole.  The segment would likewise remai
 valid if its two paths were listed in the opposite order.
 
 The only time where the lexical ordering of paths (viz. the order of paths as
-specified in the source file) comes into play is when using the `--upto` option of
-the `-m` (measurement) function.  This calculates which point along a route, segment,
-or path is at a given distance from the starting point.
+specified in the source file) is to determine the starting point for measuring a
+path, segment, or route via the `--upto` option of the `-m` (measurement) function.
 
 Segments may also contain references to paths defined elsewhere in the data set.
 The above example could be rewritten as
@@ -407,9 +423,12 @@ The above example could be rewritten as
 )
 ----
 
-Waypoints are most useful when they denote where one path splits from another.  Here
-a segment which is part of a long route has a side path leading to a feature not on
-the main path.
+Waypoints were once required when one path split from another at an interior point.  They may
+still be used in such a way.  Here a segment which is part of a long route has a side path
+leading to a feature not on the main path.
+
+Note that the example would work the same way if the point with the comment
+"this is the waypoint" were removed.
 
 ----
 (segment partOfRoadToMarket
@@ -455,17 +474,14 @@ the main path.
 This allows us to specify a side route—which we can measure with the usual
 measurement tools—where we can reuse part of an existing path without having to alter
 that path.  The above example has a comment on the point of the main path where the
-side road starts, but in practice there is no need to place even a comment on the
-main path.  The _marketToSideFeature_ segment includes the full _secondMainPath_
-path, part of _firstMainPath_ and all of _sideRoad_.  The waypoint effectively
-shortens _firstMainPath_ using one of that path's interior points, but does not
-shorten _sideRoad_ because the waypoint is one of the side path's endpoints.
+side road starts; though not required, such comments aid in the analysis and
+maintenance of the data set.  The _marketToSideFeature_ segment includes the full
+_secondMainPath_ path, part of _firstMainPath_ and all of _sideRoad_.
 
-Important to note:  when a waypoint breaks to an interior point of a path, it gives
-no hint as to where the other end should be.  The other end of the shortened path
-must be specified either by a neighboring path or by a waypoint.  Indeed, it is
-allowed that _both_ effective ends of a path may be interior points indicated by
-waypoints.
+Important to note:  breaking a path at an interior point gives no hint as to where
+the other end should be.  The other end of the shortened path must be specified by a
+neighboring path or waypoint.  Indeed, it is allowed that _both_ effective ends of a
+path may be interior points indicated by waypoints.
 
 Note also that setting a waypoint in the middle of an existing path does nothing to
 alter that path.  A segment may set waypoints into a same path without repercussions
@@ -516,11 +532,10 @@ markers.
 
 A route is an ordered collection of segments.  The segments of a _route_ must be
 listed in order of travel and each of these segments must be linked by common
-endpoints.  (Any other object type contained within a _route_ simply serves to
-decorate the map; only segments come into play for measuring distances.)  In
-common with segments and paths, the choice of starting and ending points when listing
-a route's segments makes no difference except for users measuring partial distances
-along a route.
+effective endpoints.  A route may specify waypoints not contained in segments.
+In common with segments and paths, the choice of starting and ending points when
+listing a route's segments makes no difference except for users measuring partial
+distances along a route.
 
 There are three ways to denote which segments are to insert into a route:  _segment_
 lists to specify a segment's contents directly, _segments_ list to insert indirect
@@ -547,10 +562,26 @@ a final segment.
 )
 ----
 
+With the advent of automatic crosspoint detection and route threading, the above
+example can be written more simply as
+
+----
+(route compositeRoute
+    (segment sideTrail
+       (path
+           30.46345 -84.15002
+           30.46717 -84.14993
+       )
+    )
+    (segments mainRoute walkway)
+)
+----
+
 The separate _route_ type makes it possible to apply styling to the route as a whole
 without repeating the styling for each segment.  This also allows for the sharing of
-segments across separate routes.  Reusing another route's segments via a
-_routeSegments_ list does not copy over any styling applied to that route.
+segments across separate routes.  Reusing another route's segments via a reference
+to a route in a _segments_ list or by the use of _routeSegments_ does not copy over
+any styling applied to the referenced route.
 
 Each route may be marked with an assertion of the route's expected length.  This can
 be useful when reconstructing the locations of historic features when distances
@@ -591,10 +622,10 @@ routes.  They may affect the computed length of a path by their presence but
 themselves have zero length.
 
 All geometric features declare at least one latitude/longitude pair, which is a pair
-of floating-point values in units of degrees.  Operations in _misiones_ which compare
-points for equality measure the difference in each axis within 5×10^-7^ degrees.
-This gives an error about about half a meter of latitude and 3/4 of a meter in
-longitude at 30° latitude.
+of floating-point values in units of degrees.  These are stored as fixed-point
+values scaled to the sixth decimal place.  Input values having greater precision are
+rounded.  This scales the position error to within 5×10^-7^ degrees, which amounts
+to about half a meter of latitude and 3/4 of a meter of longitude at 30° latitude.
 
 [options="header",cols="<,^,<"]
 |====
@@ -606,4 +637,78 @@ longitude at 30° latitude.
 | _polygon_   | > 1 | nodes along the perimeter of the polygon
 | _path_      | > 1 | nodes along the path
 |====
+
+
+== Output-data format
+
+When run with the -g switch, _misiones_ generates the contents of a file to be
+copied as-is to the web server to be fetched by the Javascript application.  The
+output consists of a single assignment of a large JSON object to the Javascript
+global variable _allData_.  This object has five members--_menuitems_, _features_,
+_styles_, _texts_, and _points_, all are arrays.
+
+=== _menuitems_
+
+This array represents the root of the tree; one entry per map layer.  There are
+objects with members as folows.
+
+[options="header",cols="<,<,<"]
+|=====
+| Name | Datatype | Description
+| _menuitem_ | string | Text to display in the menu to represent a map layer
+| _f_        | array of int | Indices into the _features_ array of features in the layer
+|====
+
+=== _features_
+
+These are the individual items to draw on the map.
+
+[options="header",cols="<,<,<"]
+|====
+| Name | Datatype | Description
+| _t_  | string | Type of feature: "feature", "route", "segment", "marker",
+"circle", "rectangle", "polygon", or "path"
+| _style_ | int  | Index of the style in the _styles_ array to apply to the feature.
+If absent, this indicates no style is to be applied.
+| _popup_ | int  | Index of the text in the _texts_ array to use as the popup text
+for the feature.  If absent, there is no popup text.
+| _html_ | string | Markers only: HTML text to apply to the marker
+| _f_  | int | Features, routes, and segments only:  array of indices in the
+_features_ array of subfeatures of the current feature
+| _loc_ | array of int | Paths, markers, circles, rectangles, and polygons only:
+location of the coordinates of the location item.  The first element of _loc_ is an
+index into the _points_ array; the second element is the number of those array
+elements to use
+|====
+
+=== _styles_
+
+These are the styles which may be applied to elements.  An index of 0 indicates that
+there is no style for the element, so this array fills in element 0 with a
+placeholder value.  These keys may be present in a _styles_ object:
+
+[options="header",cols="<,<,<"]
+|====
+| Name | Datatype | Description
+| _color_ | string | Value of CSS _color_ attribute
+| _fill_ | boolean | Value of LeafletJS _fill_ attribute
+| _fillColor_ | string | Value of LeafletJS _fillColor_ attribute
+| _fillOpacity_ | float | Value of LeafletJS _fillOpacity_ attribute
+| _opacity_ | float | Value of LeafletJS _opacity_ attribute
+| _width_ | number | Value of LeafletJS _width_ attribute
+|====
+
+=== _texts_
+
+These are string values grouped into one place because of the improved liklihood
+that some values may be used by multiple features.  An index of 0 indicates that
+there is no text for the element, so this array fills in element 0 with a
+placeholder value.
+
+=== _points_
+
+Array of floating-point angles of points:  latitudes are at even indices, longitudes
+at odd.  These points are collected into a single array since there is substantial
+reuse of values in the feature set.
+
 

@@ -14,6 +14,10 @@ import (
 type locAngleType int32
 type locationPairs []locAngleType
 
+type latlongType struct {
+	lat, long locAngleType
+}
+
 const numFractionalDigits = 6
 const latLongFixedToFloatMultiplier = 1e-6
 
@@ -35,12 +39,8 @@ func toLocationPairs(scalars []sexp.LispScalar) (locationPairs, error) {
 	return out, nil
 }
 
-func (lp locationPairs) generateJs() string {
-	out := make([]string, len(lp))
-	for i, v := range lp {
-		out[i] = v.String()
-	}
-	return "[" + strings.Join(out, ",") + "]"
+func (lp locationPairs) latlongPair(i int) latlongType {
+	return latlongType{lp[i], lp[i+1]}
 }
 
 func (lp locationPairs) asFloatSlice() []float64 {
@@ -51,22 +51,23 @@ func (lp locationPairs) asFloatSlice() []float64 {
 	return out
 }
 
-func (lp locationPairs) indexOfPoint(lat, long locAngleType) int {
-	for i := 0; i < len(lp); i += 2 {
-		if isSamePoint(lat, long, lp[i], lp[i+1]) {
-			return i
+func (lp locationPairs) asReverseFloatSlice() []float64 {
+	lastLP := len(lp) - 1
+	out := make([]float64, len(lp))
+	for i, v := range lp {
+		if i & 1 > 0 {
+			i = (lastLP - i) + 1
+		} else {
+			i = (lastLP - i) - 1
 		}
+		out[i] = float64(v) * latLongFixedToFloatMultiplier
 	}
-	return -1
+	return out
 }
 
-func (lp locationPairs) haveMatchingEndpoint(lat, long locAngleType) bool {
-	return isSamePoint(lat, long, lp[0], lp[1]) ||
-		isSamePoint(lat, long, lp[len(lp)-2], lp[len(lp)-1])
-}
 
-func isSamePoint(lat1, long1, lat2, long2 locAngleType) bool {
-	return lat1 == lat2 && long1 == long2
+func (ll latlongType) samePoint(ll2 latlongType) bool {
+	return ll.lat == ll2.lat && ll.long == ll2.long
 }
 
 

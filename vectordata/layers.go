@@ -20,11 +20,8 @@ func newMapLayers(doc *VectorData, parent mapItemType, listType, listName string
 	doc.layersRoot = obj
 	name, err := doc.registerMapItem(obj, listName)
 	obj.name = name
+	obj.itemType = mitLayers
 	return obj, err
-}
-
-func (ml *mapLayersType) ItemType() int {
-	return mitLayers
 }
 
 func (ml *mapLayersType) addFeature(layer mapItemType) {
@@ -45,11 +42,8 @@ func newMapLayer(doc *VectorData, parent mapItemType, listType, listName string,
 	ml.source = source
 	name, err := doc.registerMapItem(ml, listName)
 	ml.name = name
+	ml.itemType = mitLayer
 	return ml, err
-}
-
-func (ml *mapLayerType) ItemType() int {
-	return mitLayer
 }
 
 func (ml *mapLayerType) setMenuitem(menuitem *map_textType) {

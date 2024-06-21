@@ -21,12 +21,9 @@ func newMapLengthRange(doc *VectorData, parent mapItemType, listType, listName s
 	ml := &mapLengthRangeType{}
 	ml.source = source
 	ml.name = parent.Name()
+	ml.itemType = mitLengthRange
 	doc.routesToMeasure = append(doc.routesToMeasure, ml)
 	return ml, nil
-}
-
-func (ml *mapLengthRangeType) ItemType() int {
-	return mitLengthRange
 }
 
 func (ml *mapLengthRangeType) addScalars(targetName string, scalars []sexp.LispScalar) error {
