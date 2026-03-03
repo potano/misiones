@@ -216,7 +216,8 @@ func synthesizeCrosspointEndReference(item threadableMapItemType, makeStartpoint
 		} else {
 			item = rs.children[useOffset].(threadableMapItemType)
 		}
-		itemStartPoint, _, altOffset, useOffset := item.endpointsAndOffsets()
+		var itemStartPoint latlongType
+		itemStartPoint, _, altOffset, useOffset = item.endpointsAndOffsets()
 		if itemStartPoint == usePoint {
 			useOffset = altOffset
 		}
